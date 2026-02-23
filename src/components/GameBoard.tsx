@@ -11,9 +11,10 @@ interface GameBoardProps {
   logs: string[];
   isPaused: boolean;
   onTogglePause: () => void;
+  onQuitGame: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, isHumanTurn, logs, isPaused, onTogglePause }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, isHumanTurn, logs, isPaused, onTogglePause, onQuitGame }) => {
   const [bidValue, setBidValue] = useState(1);
 
   const getPlayer = (seat: number) => gameState.players[seat];
@@ -33,11 +34,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   const renderPlayerInfo = (seat: number, position: 'top' | 'bottom' | 'left' | 'right') => {
     const player = getPlayer(seat);
     const isTurn = gameState.currentTurn === seat;
-    
+
     return (
       <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm`}>
         <div className="font-bold text-lg">
-          {seat === 0 ? 'You' : `Bot ${seat}`}
+          {player.name}
         </div>
         <div className="text-sm">
           Bid: {player.bid !== null ? player.bid : '-'} | Won: {player.tricksWon}
@@ -76,7 +77,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
             // Seat 1 (Left): Left
             // Seat 2 (Partner): Top
             // Seat 3 (Right): Right
-            
+
             switch (play.seat) {
               case 0: positionClass = 'translate-y-12'; break;
               case 1: positionClass = '-translate-x-12 -rotate-90'; break;
@@ -103,11 +104,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           </div>
         )}
         {isCompletedTrick && (
-           <div className="absolute inset-0 flex items-center justify-center z-10">
-             <div className="bg-black/60 text-white px-3 py-1 rounded-full text-sm font-bold backdrop-blur-md">
-               Winner: {gameState.trickHistory[gameState.trickHistory.length - 1].winner === 0 ? 'You' : `Bot ${gameState.trickHistory[gameState.trickHistory.length - 1].winner}`}
-             </div>
-           </div>
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <div className="bg-black/60 text-white px-3 py-1 rounded-full text-sm font-bold backdrop-blur-md">
+              Winner: {getPlayer(gameState.trickHistory[gameState.trickHistory.length - 1].winner!).name}
+            </div>
+          </div>
         )}
       </div>
     );
@@ -121,17 +122,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         <div className="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4">
           <h2 className="text-2xl font-bold">Your Bid</h2>
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => setBidValue(Math.max(0, bidValue - 1))}
               className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-xl"
             >-</button>
             <span className="text-4xl font-mono font-bold w-16 text-center">{bidValue}</span>
-            <button 
+            <button
               onClick={() => setBidValue(Math.min(13, bidValue + 1))}
               className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-xl"
             >+</button>
           </div>
-          <button 
+          <button
             onClick={() => onBid(bidValue)}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg"
           >
@@ -166,11 +167,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           // For now, let's just allow clicking and let the engine reject it (with visual feedback from logs).
           // Better: pass legal plays from hook?
           // The hook doesn't expose legal plays directly, but we can infer or just try.
-          
+
           return (
-            <Card 
-              key={card.id} 
-              card={card} 
+            <Card
+              key={card.id}
+              card={card}
               playable={isHumanTurn && gameState.phase === 'playing'}
               onClick={() => isHumanTurn && gameState.phase === 'playing' && onPlay(card.id)}
               className="transform hover:-translate-y-4 transition-transform duration-200 shadow-xl"
@@ -186,11 +187,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       {/* Header / Scoreboard */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-none z-20">
         <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm">
-          <div className="font-bold text-blue-300">Team 1 (You + Bot 2)</div>
+          <div className="font-bold text-blue-300">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
           <div>Score: {gameState.teams.team1.score}</div>
           <div>Bags: {gameState.teams.team1.bags}</div>
         </div>
-        
+
         <div className="pointer-events-auto">
           <div className="mt-2 text-center text-white/50 text-xs font-mono bg-black/30 px-2 py-1 rounded">
             Target: {gameState.targetScore}
@@ -198,7 +199,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
 
         <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm">
-          <div className="font-bold text-red-300">Team 2 (Bot 1 + Bot 3)</div>
+          <div className="font-bold text-red-300">Team 2 ({getPlayer(1).name} + {getPlayer(3).name})</div>
           <div>Score: {gameState.teams.team2.score}</div>
           <div>Bags: {gameState.teams.team2.bags}</div>
         </div>
@@ -206,10 +207,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
 
       {/* Paused Overlay */}
       {isPaused && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-40 flex items-center justify-center">
-          <div className="text-4xl font-bold text-white tracking-widest animate-pulse">
-            GAME PAUSED
-            <div className="text-sm font-normal mt-4 text-center text-gray-300">Press ESC to Resume</div>
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4">
+          <div className="bg-white/10 border border-white/20 p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full backdrop-blur-lg">
+            <h2 className="text-4xl font-bold text-white tracking-widest uppercase mb-2">Paused</h2>
+            <div className="flex flex-col gap-4 w-full">
+              <button
+                onClick={onTogglePause}
+                className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95"
+              >
+                Resume Match
+              </button>
+              <button
+                onClick={onQuitGame}
+                className="w-full py-3 px-6 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-all transform hover:scale-105 active:scale-95"
+              >
+                Quit to Menu
+              </button>
+            </div>
+            <div className="text-sm font-normal mt-2 text-center text-gray-400">Press ESC to Resume</div>
           </div>
         </div>
       )}
@@ -218,23 +233,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       <div className="flex-1 flex flex-col justify-center items-center relative">
         {/* Top Player (Partner) */}
         <div className="absolute top-16 flex flex-col items-center">
-          <PlayerAvatar player={getPlayer(2)} isCurrentTurn={gameState.currentTurn === 2} />
+          {renderPlayerInfo(2, 'top')}
         </div>
 
         {/* Left Player */}
         <div className="absolute left-8 flex flex-col items-center">
-          <PlayerAvatar player={getPlayer(1)} isCurrentTurn={gameState.currentTurn === 1} />
+          {renderPlayerInfo(1, 'left')}
         </div>
 
         {/* Right Player */}
         <div className="absolute right-8 flex flex-col items-center">
-          <PlayerAvatar player={getPlayer(3)} isCurrentTurn={gameState.currentTurn === 3} />
+          {renderPlayerInfo(3, 'right')}
         </div>
 
         {/* Center Table (Played Cards) */}
         <div className="relative w-96 h-96 flex items-center justify-center">
           <div className="absolute inset-0 bg-green-800/30 rounded-full blur-xl"></div>
-          
+
           {/* Render played cards in specific positions */}
           {gameState.currentTrick.plays.map((play, i) => {
             // Map seat to position relative to user (South)
@@ -249,7 +264,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
               { top: 40, left: '50%', transform: 'translateX(-50%) scale(1.5)', zIndex: 10 }, // North
               { right: 40, top: '50%', transform: 'translateY(-50%) rotate(-90deg) scale(1.5)', zIndex: 10 } // East
             ];
-            
+
             return (
               <motion.div
                 key={`${play.seat}-${play.card.id}`}
@@ -258,7 +273,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
                 className="absolute"
                 style={positions[play.seat]}
               >
-                <CardView card={play.card} />
+                <Card card={play.card} />
                 <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap">
                   {getPlayer(play.seat).name}
                 </div>
@@ -267,10 +282,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           })}
         </div>
 
-        {/* Bottom Player (User) */}
-        <div className="absolute bottom-8 flex flex-col items-center w-full max-w-4xl">
-          <PlayerAvatar player={getPlayer(0)} isCurrentTurn={gameState.currentTurn === 0} />
-        </div>
+        {/* Bottom Player (User) - Rendering handled in footer */}
       </div>
 
       {/* Bottom Area: User Info + Hand */}

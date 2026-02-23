@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spades LLM Arena — System Documentation</title>
+  <meta name="description" content="Comprehensive product documentation for the Spades LLM Arena: an AI benchmarking platform for the classic card game Spades.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ===== Side Navigation ===== -->
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">♠</span>
+      <span class="logo-text">Spades Arena</span>
+    </div>
+    <ul class="nav-links">
+      <li><a href="#hero" class="nav-link active" data-section="hero">Home</a></li>
+      <li><a href="#overview" class="nav-link" data-section="overview">System Overview</a></li>
+      <li><a href="#architecture" class="nav-link" data-section="architecture">Architecture</a></li>
+      <li>
+        <a href="#engine" class="nav-link has-children" data-section="engine">Game Engine</a>
+        <ul class="sub-nav">
+          <li><a href="#engine-types" class="nav-link" data-section="engine-types">Type System</a></li>
+          <li><a href="#engine-deck" class="nav-link" data-section="engine-deck">Deck &amp; Cards</a></li>
+          <li><a href="#engine-rules" class="nav-link" data-section="engine-rules">Rules &amp; Scoring</a></li>
+          <li><a href="#engine-loop" class="nav-link" data-section="engine-loop">Game Loop</a></li>
+        </ul>
+      </li>
+      <li>
+        <a href="#agents" class="nav-link has-children" data-section="agents">AI Agents</a>
+        <ul class="sub-nav">
+          <li><a href="#agent-random" class="nav-link" data-section="agent-random">Random</a></li>
+          <li><a href="#agent-heuristic" class="nav-link" data-section="agent-heuristic">Heuristic</a></li>
+          <li><a href="#agent-llm" class="nav-link" data-section="agent-llm">LLM (Gemini)</a></li>
+          <li><a href="#agent-openrouter" class="nav-link" data-section="agent-openrouter">OpenRouter</a></li>
+        </ul>
+      </li>
+      <li><a href="#ui" class="nav-link" data-section="ui">Frontend &amp; UI</a></li>
+      <li><a href="#streaming" class="nav-link" data-section="streaming">YouTube Streaming</a></li>
+      <li><a href="#quickstart" class="nav-link" data-section="quickstart">Getting Started</a></li>
+      <li><a href="#credentials" class="nav-link" data-section="credentials">Credentials</a></li>
+    </ul>
+  </nav>
+
+  <!-- ===== Mobile Menu Toggle ===== -->
+  <button id="menu-toggle" aria-label="Toggle navigation">
+    <span></span><span></span><span></span>
+  </button>
+
+  <!-- ===== Main Content ===== -->
+  <main id="content">
+
+    <!-- Hero -->
+    <section id="hero" class="section hero-section">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <span class="badge">Product Documentation v2.0</span>
+        <h1>Spades LLM Arena</h1>
+        <p class="hero-subtitle">An AI Benchmarking Platform for the Classic Card Game of Spades</p>
+        <p class="hero-desc">Pit large language models against rule-based bots and human players in real-time, tournament-style Spades matches. Stream live to YouTube, benchmark AI reasoning, and watch the cards fly.</p>
+        <div class="hero-actions">
+          <a href="#quickstart" class="btn btn-primary">Get Started</a>
+          <a href="#architecture" class="btn btn-outline">View Architecture</a>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><span class="stat-value">4</span><span class="stat-label">Agent Types</span></div>
+          <div class="stat"><span class="stat-value">10+</span><span class="stat-label">LLM Models</span></div>
+          <div class="stat"><span class="stat-value">24/7</span><span class="stat-label">YouTube Streaming</span></div>
+          <div class="stat"><span class="stat-value">54</span><span class="stat-label">Card Deck (Jokers)</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- System Overview -->
+    <section id="overview" class="section">
+      <div class="section-inner">
+        <span class="section-badge">01</span>
+        <h2>System Overview</h2>
+        <p class="section-desc">The Spades LLM Arena is a full-stack application that combines a rigorous card game engine with pluggable AI agents, a real-time React UI, and an optional headless streaming pipeline for broadcasting autonomous matches to YouTube.</p>
+
+        <div class="card-grid">
+          <div class="info-card" onclick="this.classList.toggle('expanded')">
+            <div class="card-icon">🎮</div>
+            <h3>Game Engine</h3>
+            <p>TypeScript-powered Spades engine supporting Standard (52-card) and Joker (54-card) variants with full trick evaluation, scoring, and state management.</p>
+            <div class="card-detail">
+              <ul>
+                <li>Deterministic trick winner resolution</li>
+                <li>Nil and blind-nil bid support</li>
+                <li>Bags penalty tracking (10-bag rule)</li>
+                <li>Configurable target scores (250 / 500 / 1000)</li>
+              </ul>
+            </div>
+          </div>
+          <div class="info-card" onclick="this.classList.toggle('expanded')">
+            <div class="card-icon">🤖</div>
+            <h3>AI Agents</h3>
+            <p>Four pluggable agent types compete head-to-head: Random baseline, Heuristic rule-based, Gemini LLM, and OpenRouter multi-model gateway.</p>
+            <div class="card-detail">
+              <ul>
+                <li>Standardized Agent interface (bid + play)</li>
+                <li>JSON-structured LLM prompts w/ game state</li>
+                <li>Automatic fallback on parse failures</li>
+                <li>Support for 10+ OpenRouter models</li>
+              </ul>
+            </div>
+          </div>
+          <div class="info-card" onclick="this.classList.toggle('expanded')">
+            <div class="card-icon">📺</div>
+            <h3>Live Streaming</h3>
+            <p>A fully autonomous streaming pipeline using Playwright, Xvfb, and FFmpeg to broadcast never-ending Spades matches to YouTube Live.</p>
+            <div class="card-detail">
+              <ul>
+                <li>Playwright Chromium orchestrator</li>
+                <li>Auto-restart on match completion</li>
+                <li>Virtual display rendering (Xvfb)</li>
+                <li>RTMP push to YouTube ingest servers</li>
+              </ul>
+            </div>
+          </div>
+          <div class="info-card" onclick="this.classList.toggle('expanded')">
+            <div class="card-icon">🎨</div>
+            <h3>React UI</h3>
+            <p>Immersive card table with animated trick plays, team scoreboards, a configurable setup panel, and an interactive pause menu.</p>
+            <div class="card-detail">
+              <ul>
+                <li>Framer Motion card animations</li>
+                <li>MP4 video backgrounds</li>
+                <li>Escape-key pause with Resume/Quit</li>
+                <li>Real-time game log sidebar</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture -->
+    <section id="architecture" class="section section-alt">
+      <div class="section-inner">
+        <span class="section-badge">02</span>
+        <h2>Architecture</h2>
+        <p class="section-desc">The system follows a clean layered architecture with the game engine at the core, agents as plugins, and the React UI as the presentation layer.</p>
+
+        <div class="arch-diagram">
+          <div class="arch-layer arch-layer-1">
+            <div class="arch-label">Presentation Layer</div>
+            <div class="arch-items">
+              <div class="arch-box">React UI<br><small>GameBoard.tsx</small></div>
+              <div class="arch-box">Setup Screen<br><small>GameSetup.tsx</small></div>
+              <div class="arch-box">Settings<br><small>SettingsModal.tsx</small></div>
+            </div>
+          </div>
+          <div class="arch-arrow">▼</div>
+          <div class="arch-layer arch-layer-2">
+            <div class="arch-label">Application Layer</div>
+            <div class="arch-items">
+              <div class="arch-box">useGame Hook<br><small>State Manager</small></div>
+              <div class="arch-box">Agent Interface<br><small>base.ts</small></div>
+            </div>
+          </div>
+          <div class="arch-arrow">▼</div>
+          <div class="arch-layer arch-layer-3">
+            <div class="arch-label">Engine Layer</div>
+            <div class="arch-items">
+              <div class="arch-box">GameEngine<br><small>game.ts</small></div>
+              <div class="arch-box">Rules<br><small>rules.ts</small></div>
+              <div class="arch-box">Deck<br><small>deck.ts</small></div>
+              <div class="arch-box">Scoring<br><small>scoring.ts</small></div>
+            </div>
+          </div>
+          <div class="arch-arrow">▼</div>
+          <div class="arch-layer arch-layer-4">
+            <div class="arch-label">Agent Plugins</div>
+            <div class="arch-items">
+              <div class="arch-box agent-random">Random</div>
+              <div class="arch-box agent-heuristic">Heuristic</div>
+              <div class="arch-box agent-llm">Gemini LLM</div>
+              <div class="arch-box agent-openrouter">OpenRouter</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="collapsible" onclick="this.classList.toggle('open')">
+          <div class="collapsible-header">
+            <span>📁 Directory Structure</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="collapsible-content">
+<pre><code>Spades-LLM-Arena/
+├── docs/                  ← You are here
+│   ├── index.html
+│   └── styles.css
+├── src/
+│   ├── agents/            ← AI agent implementations
+│   │   ├── base.ts        ← Agent interface
+│   │   ├── random_agent.ts
+│   │   ├── heuristic_agent.ts
+│   │   ├── llm_agent.ts   ← Gemini integration
+│   │   ├── openrouter_agent.ts
+│   │   └── prompts.ts     ← LLM prompt templates
+│   ├── engine/            ← Core game logic
+│   │   ├── types.ts       ← TypeScript interfaces
+│   │   ├── deck.ts        ← Card/deck management
+│   │   ├── rules.ts       ← Trick evaluation
+│   │   ├── scoring.ts     ← Hand scoring
+│   │   ├── game.ts        ← GameEngine class
+│   │   └── runner.ts      ← Headless game runner
+│   ├── components/        ← React UI components
+│   │   ├── GameBoard.tsx   ← Main play surface
+│   │   ├── GameSetup.tsx   ← Config screen
+│   │   ├── Card.tsx        ← Card renderer
+│   │   └── SettingsModal.tsx
+│   ├── hooks/
+│   │   └── useGame.ts     ← Game state hook
+│   ├── App.tsx            ← Root component
+│   └── main.tsx           ← Entry point
+├── stream/                ← YouTube streaming scripts
+│   └── orchestrator.ts    ← Playwright orchestrator
+├── public/
+│   └── spades_background.mp4
+└── package.json</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Game Engine -->
+    <section id="engine" class="section">
+      <div class="section-inner">
+        <span class="section-badge">03</span>
+        <h2>Game Engine</h2>
+        <p class="section-desc">The engine is a pure TypeScript state machine that enforces all Spades rules, manages the 4-player trick-taking loop, and provides structured observations to agents.</p>
+
+        <!-- Type System -->
+        <div id="engine-types" class="subsection">
+          <h3>Type System</h3>
+          <p>All game entities are strictly typed. The core types form the contract between the engine, agents, and UI.</p>
+          <div class="collapsible" onclick="this.classList.toggle('open')">
+            <div class="collapsible-header">
+              <span>📄 Core Interfaces</span>
+              <span class="chevron">›</span>
+            </div>
+            <div class="collapsible-content">
+              <div class="type-grid">
+                <div class="type-card">
+                  <h4>Card</h4>
+                  <code>{ suit: S|H|D|C|J, rank: Big|Little|A…2, id: string }</code>
+                  <p>Every card has a unique ID for tracking through the trick lifecycle.</p>
+                </div>
+                <div class="type-card">
+                  <h4>GameConfig</h4>
+                  <code>{ variant, targetScore, players[], openrouter_api_key? }</code>
+                  <p>Passed from the Setup Screen to initialize a match.</p>
+                </div>
+                <div class="type-card">
+                  <h4>GameState</h4>
+                  <code>{ phase, dealer, currentTurn, players[], teams, currentTrick, trickHistory[], spadesBroken, handNumber }</code>
+                  <p>The complete snapshot used by the UI to render every frame.</p>
+                </div>
+                <div class="type-card">
+                  <h4>Observation</h4>
+                  <code>{ phase, hand[], seat, score, bidding_context?, playing_context? }</code>
+                  <p>A filtered view of GameState given to agents — they only see their own hand and public info.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deck -->
+        <div id="engine-deck" class="subsection">
+          <h3>Deck &amp; Cards</h3>
+          <p>The deck module handles card creation and shuffling for both Standard and Joker variants.</p>
+          <div class="comparison-table">
+            <table>
+              <thead>
+                <tr><th>Feature</th><th>Standard (52)</th><th>Jokers (54)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Cards</td><td>13 per suit × 4 suits</td><td>+ Big Joker + Little Joker</td></tr>
+                <tr><td>Removed</td><td>—</td><td>2♣ and 2♦ removed</td></tr>
+                <tr><td>Trump Order</td><td>A♠ highest</td><td>Big Joker → Little Joker → A♠ → K♠ …</td></tr>
+                <tr><td>Cards Per Hand</td><td>13</td><td>13 (+ 2 jokers, − 2 deuces)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Rules -->
+        <div id="engine-rules" class="subsection">
+          <h3>Rules &amp; Scoring</h3>
+          <div class="rules-grid">
+            <div class="rule-card">
+              <h4>Trick Evaluation</h4>
+              <p>The <code>determineTrickWinner()</code> function iterates over all 4 plays and compares card values. Trump (Spades/Jokers) always beats non-trump. Among trumps, the numerical hierarchy is applied.</p>
+              <div class="priority-chain">
+                <span class="priority-item high">Big Joker</span>
+                <span class="priority-arrow">→</span>
+                <span class="priority-item high">Little Joker</span>
+                <span class="priority-arrow">→</span>
+                <span class="priority-item medium">A♠</span>
+                <span class="priority-arrow">→</span>
+                <span class="priority-item medium">K♠ … 2♠</span>
+                <span class="priority-arrow">→</span>
+                <span class="priority-item low">Led Suit (high→low)</span>
+              </div>
+            </div>
+            <div class="rule-card">
+              <h4>Scoring</h4>
+              <ul>
+                <li><strong>Made contract:</strong> bid × 10 + overtricks as bags</li>
+                <li><strong>Set (under-bid):</strong> bid × −10</li>
+                <li><strong>Nil bonus:</strong> +100 (success) / −100 (failure)</li>
+                <li><strong>Bags penalty:</strong> −100 per 10 accumulated bags</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Loop -->
+        <div id="engine-loop" class="subsection">
+          <h3>Game Loop</h3>
+          <div class="flow-diagram">
+            <div class="flow-step">
+              <div class="flow-number">1</div>
+              <div class="flow-content">
+                <h4>Deal</h4>
+                <p>Shuffle deck, distribute 13 cards per player</p>
+              </div>
+            </div>
+            <div class="flow-connector"></div>
+            <div class="flow-step">
+              <div class="flow-number">2</div>
+              <div class="flow-content">
+                <h4>Bid Phase</h4>
+                <p>Each player bids (0–13) starting left of dealer</p>
+              </div>
+            </div>
+            <div class="flow-connector"></div>
+            <div class="flow-step">
+              <div class="flow-number">3</div>
+              <div class="flow-content">
+                <h4>Play Phase</h4>
+                <p>13 tricks played, led suit must be followed</p>
+              </div>
+            </div>
+            <div class="flow-connector"></div>
+            <div class="flow-step">
+              <div class="flow-number">4</div>
+              <div class="flow-content">
+                <h4>Score Hand</h4>
+                <p>Calculate points, apply bags, check target</p>
+              </div>
+            </div>
+            <div class="flow-connector"></div>
+            <div class="flow-step">
+              <div class="flow-number">5</div>
+              <div class="flow-content">
+                <h4>Check Win</h4>
+                <p>If team ≥ target score → Game Over. Else → Deal again.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Agents -->
+    <section id="agents" class="section section-alt">
+      <div class="section-inner">
+        <span class="section-badge">04</span>
+        <h2>AI Agents</h2>
+        <p class="section-desc">All agents implement the same <code>Agent</code> interface with <code>bid()</code> and <code>play()</code> methods, receiving an <code>Observation</code> and returning a structured action.</p>
+
+        <div class="agent-grid">
+          <div id="agent-random" class="agent-card" onclick="this.classList.toggle('expanded')">
+            <div class="agent-header">
+              <span class="agent-badge baseline">Baseline</span>
+              <h3>Random Agent</h3>
+            </div>
+            <p>Selects a random legal play and random bid (1–5). Used primarily as a floor benchmark — any useful agent should beat this consistently.</p>
+            <div class="card-detail">
+              <h4>Implementation</h4>
+              <ul>
+                <li>Bids a random value between 1 and 5</li>
+                <li>Plays a uniformly random card from legal plays</li>
+                <li>Zero latency, zero external dependencies</li>
+                <li>File: <code>src/agents/random_agent.ts</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="agent-heuristic" class="agent-card" onclick="this.classList.toggle('expanded')">
+            <div class="agent-header">
+              <span class="agent-badge rule">Rule-Based</span>
+              <h3>Heuristic Agent</h3>
+            </div>
+            <p>A hand-coded strategy that evaluates card strength, counts spades, and makes informed decisions about when to trump and when to duck.</p>
+            <div class="card-detail">
+              <h4>Strategy</h4>
+              <ul>
+                <li><strong>Bidding:</strong> Counts high cards (A/K/Q) + spade length for projected tricks</li>
+                <li><strong>Leading:</strong> Plays highest off-suit winner or lowest spade</li>
+                <li><strong>Following:</strong> Plays cheapest winner if possible, else ducks low</li>
+                <li><strong>Trumping:</strong> Uses lowest spade to trump when void in led suit</li>
+                <li>File: <code>src/agents/heuristic_agent.ts</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="agent-llm" class="agent-card" onclick="this.classList.toggle('expanded')">
+            <div class="agent-header">
+              <span class="agent-badge llm">LLM</span>
+              <h3>Gemini Agent</h3>
+            </div>
+            <p>Uses Google's Gemini API to reason about game state and produce strategic bids and plays via structured JSON prompts.</p>
+            <div class="card-detail">
+              <h4>How It Works</h4>
+              <ul>
+                <li>Serializes the Observation into a detailed text prompt</li>
+                <li>Requests JSON-formatted response with <code>action</code> + <code>reasoning</code></li>
+                <li>Parses and validates response against legal plays</li>
+                <li>Falls back to random on parse failure or illegal play</li>
+                <li>Requires: <code>GEMINI_API_KEY</code> env variable</li>
+                <li>File: <code>src/agents/llm_agent.ts</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="agent-openrouter" class="agent-card" onclick="this.classList.toggle('expanded')">
+            <div class="agent-header">
+              <span class="agent-badge openrouter">Multi-Model</span>
+              <h3>OpenRouter Agent</h3>
+            </div>
+            <p>Routes requests through OpenRouter's unified API gateway, enabling any of 10+ LLM models to play Spades — from GPT-4o to Llama 3.1 405B.</p>
+            <div class="card-detail">
+              <h4>Supported Models</h4>
+              <div class="model-list">
+                <span class="model-tag">GPT-4o</span>
+                <span class="model-tag">Claude 3.5 Sonnet</span>
+                <span class="model-tag">Gemini Pro 1.5</span>
+                <span class="model-tag">Llama 3.1 405B</span>
+                <span class="model-tag">Llama 3.1 70B</span>
+                <span class="model-tag">Mistral Large</span>
+                <span class="model-tag">DeepSeek Chat</span>
+                <span class="model-tag">Qwen 2.5 72B</span>
+                <span class="model-tag">Hermes 3 405B</span>
+                <span class="model-tag">Phi-3 Medium</span>
+              </div>
+              <p style="margin-top:0.75rem"><strong>Requires:</strong> OpenRouter API key set via the Settings modal in the game UI.</p>
+              <p>File: <code>src/agents/openrouter_agent.ts</code></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Frontend & UI -->
+    <section id="ui" class="section">
+      <div class="section-inner">
+        <span class="section-badge">05</span>
+        <h2>Frontend &amp; UI</h2>
+        <p class="section-desc">The web interface is built with React 19, Vite, Tailwind CSS 4, and Framer Motion for fluid card animations.</p>
+
+        <div class="ui-features">
+          <div class="ui-feature">
+            <div class="ui-feature-icon">🖥️</div>
+            <h4>Game Setup Screen</h4>
+            <p>Configure game variant, target score, and assign players to seats. Each seat can be Human, Heuristic Bot, Random Bot, or any LLM agent.</p>
+          </div>
+          <div class="ui-feature">
+            <div class="ui-feature-icon">♠️</div>
+            <h4>Game Board</h4>
+            <p>Full-screen card table with player info panels, animated trick plays, team scoreboards, and a real-time game log. Cards fan out in the player's hand with hover-to-select interaction.</p>
+          </div>
+          <div class="ui-feature">
+            <div class="ui-feature-icon">⏸️</div>
+            <h4>Pause Menu</h4>
+            <p>Press <kbd>ESC</kbd> during gameplay to open the interactive pause overlay with <strong>Resume Match</strong> and <strong>Quit to Menu</strong> buttons. The game loop is fully suspended until resumed.</p>
+          </div>
+          <div class="ui-feature">
+            <div class="ui-feature-icon">🎬</div>
+            <h4>Video Backgrounds</h4>
+            <p>The setup screen features an MP4 video background loop for a cinema-quality presentation feel.</p>
+          </div>
+        </div>
+
+        <div class="collapsible" onclick="this.classList.toggle('open')">
+          <div class="collapsible-header">
+            <span>🔧 Key React Components</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="collapsible-content">
+            <table>
+              <thead>
+                <tr><th>Component</th><th>File</th><th>Responsibility</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>App</code></td><td>App.tsx</td><td>Root: toggles between GameSetup and GameBoard</td></tr>
+                <tr><td><code>GameSetup</code></td><td>GameSetup.tsx</td><td>Variant, score, and player configuration</td></tr>
+                <tr><td><code>GameBoard</code></td><td>GameBoard.tsx</td><td>Card table, trick display, pause overlay</td></tr>
+                <tr><td><code>Card</code></td><td>Card.tsx</td><td>Individual card rendering with suit/rank</td></tr>
+                <tr><td><code>SettingsModal</code></td><td>SettingsModal.tsx</td><td>Game speed and API key configuration</td></tr>
+                <tr><td><code>useGame</code></td><td>useGame.ts</td><td>Core hook: game loop, agent dispatch, state</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- YouTube Streaming -->
+    <section id="streaming" class="section section-alt">
+      <div class="section-inner">
+        <span class="section-badge">06</span>
+        <h2>YouTube Live Streaming</h2>
+        <p class="section-desc">Run a fully autonomous, 24/7 Spades broadcast to YouTube without any human interaction using our Playwright + FFmpeg pipeline.</p>
+
+        <div class="stream-arch">
+          <div class="stream-step">
+            <div class="stream-icon">🖥️</div>
+            <h4>1. Node.js Orchestrator</h4>
+            <p>A standalone TypeScript script (<code>stream/orchestrator.ts</code>) that boots the dev server, launches Playwright, and monitors uptime.</p>
+          </div>
+          <div class="stream-arrow">→</div>
+          <div class="stream-step">
+            <div class="stream-icon">🌐</div>
+            <h4>2. Headless Chromium</h4>
+            <p>Playwright opens a Chromium instance, navigates to localhost, clicks "Start Match", and auto-restarts games on completion.</p>
+          </div>
+          <div class="stream-arrow">→</div>
+          <div class="stream-step">
+            <div class="stream-icon">🖼️</div>
+            <h4>3. Xvfb Virtual Display</h4>
+            <p>On headless Linux servers, Xvfb creates a virtual monitor so Chromium renders full CSS animations and video backgrounds.</p>
+          </div>
+          <div class="stream-arrow">→</div>
+          <div class="stream-step">
+            <div class="stream-icon">📡</div>
+            <h4>4. FFmpeg RTMP Push</h4>
+            <p>FFmpeg captures the virtual display at 30fps, encodes to H.264, and pushes to YouTube's RTMP ingest servers.</p>
+          </div>
+        </div>
+
+        <div class="collapsible" onclick="this.classList.toggle('open')">
+          <div class="collapsible-header">
+            <span>📋 FFmpeg Command Reference</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="collapsible-content">
+<pre><code>ffmpeg \
+  -f x11grab -video_size 1920x1080 -framerate 30 -i :99 \
+  -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+  -c:v libx264 -preset veryfast -maxrate 3000k -bufsize 6000k \
+  -pix_fmt yuv420p -g 60 \
+  -c:a aac -b:a 128k \
+  -f flv "rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_STREAM_KEY}"</code></pre>
+            <table>
+              <thead><tr><th>Flag</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>-f x11grab</code></td><td>Capture from X11 display (Xvfb)</td></tr>
+                <tr><td><code>-i :99</code></td><td>Display number assigned to Xvfb</td></tr>
+                <tr><td><code>-preset veryfast</code></td><td>Low CPU encoding for real-time</td></tr>
+                <tr><td><code>-maxrate 3000k</code></td><td>YouTube recommended bitrate for 1080p</td></tr>
+                <tr><td><code>-f flv</code></td><td>FLV container required for RTMP</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="collapsible" onclick="this.classList.toggle('open')">
+          <div class="collapsible-header">
+            <span>🔁 Auto-Restart Logic</span>
+            <span class="chevron">›</span>
+          </div>
+          <div class="collapsible-content">
+            <p>The orchestrator polls the DOM every 5 seconds for game completion signals:</p>
+            <ol>
+              <li>Detects "Game Over" text in the game log</li>
+              <li>Waits 10 seconds for the score to be visible</li>
+              <li>Triggers a page reload to reset the React state</li>
+              <li>Re-clicks the variant and "Start Match" button</li>
+              <li>Match resumes autonomously — infinite loop</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Getting Started -->
+    <section id="quickstart" class="section">
+      <div class="section-inner">
+        <span class="section-badge">07</span>
+        <h2>Getting Started</h2>
+        <p class="section-desc">Get the Spades Arena running locally in under 2 minutes.</p>
+
+        <div class="steps-container">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+              <h4>Prerequisites</h4>
+              <ul>
+                <li><strong>Node.js</strong> v18+ (LTS recommended)</li>
+                <li><strong>npm</strong> v9+</li>
+                <li>Optional: <strong>FFmpeg</strong> (for streaming only)</li>
+                <li>Optional: <strong>Xvfb</strong> (for headless Linux streaming)</li>
+              </ul>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+              <h4>Clone &amp; Install</h4>
+<pre><code>git clone https://github.com/ceo4ced/Spades-LLM-Arena.git
+cd Spades-LLM-Arena
+npm install</code></pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+              <h4>Configure Environment</h4>
+              <p>Create a <code>.env.local</code> file in the project root:</p>
+<pre><code># Required for Gemini LLM agents
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional: YouTube streaming
+YOUTUBE_STREAM_KEY=your_youtube_stream_key</code></pre>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+              <h4>Run the Game</h4>
+<pre><code># Start the development server
+npm run dev
+
+# Opens at http://localhost:3000</code></pre>
+              <p>Select your game variant, configure bot types, and click <strong>Start Match</strong>!</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-number">5</div>
+            <div class="step-content">
+              <h4>Start Streaming (Optional)</h4>
+<pre><code># Install Playwright browsers (first time only)
+npx playwright install chromium
+
+# Launch the autonomous streamer
+npm run stream</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Credentials -->
+    <section id="credentials" class="section section-alt">
+      <div class="section-inner">
+        <span class="section-badge">08</span>
+        <h2>Credentials &amp; API Keys</h2>
+        <p class="section-desc">A complete reference of all credentials needed to operate the system at full capacity.</p>
+
+        <div class="cred-grid">
+          <div class="cred-card">
+            <div class="cred-header">
+              <span class="cred-icon">🔑</span>
+              <div>
+                <h4>Gemini API Key</h4>
+                <span class="cred-required">Required for LLM Agents</span>
+              </div>
+            </div>
+            <div class="cred-body">
+              <p><strong>Purpose:</strong> Authenticate with Google's Gemini API for LLM-based agents (Gemini Flash, Gemini Pro).</p>
+              <p><strong>How to get:</strong></p>
+              <ol>
+                <li>Go to <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a></li>
+                <li>Click "Create API Key"</li>
+                <li>Copy the key</li>
+              </ol>
+              <p><strong>Where to set:</strong></p>
+              <code>GEMINI_API_KEY=AIza...</code> in <code>.env.local</code>
+            </div>
+          </div>
+
+          <div class="cred-card">
+            <div class="cred-header">
+              <span class="cred-icon">🌐</span>
+              <div>
+                <h4>OpenRouter API Key</h4>
+                <span class="cred-optional">Optional — Multi-Model</span>
+              </div>
+            </div>
+            <div class="cred-body">
+              <p><strong>Purpose:</strong> Access 10+ LLM models (GPT-4o, Claude, Llama, etc.) through a single API gateway.</p>
+              <p><strong>How to get:</strong></p>
+              <ol>
+                <li>Sign up at <a href="https://openrouter.ai" target="_blank">openrouter.ai</a></li>
+                <li>Navigate to "API Keys" in your dashboard</li>
+                <li>Create a new key and add billing credits</li>
+              </ol>
+              <p><strong>Where to set:</strong> In-app via the <strong>Settings</strong> gear icon (⚙️) on the Setup Screen. Stored in <code>localStorage</code>.</p>
+            </div>
+          </div>
+
+          <div class="cred-card">
+            <div class="cred-header">
+              <span class="cred-icon">📺</span>
+              <div>
+                <h4>YouTube Stream Key</h4>
+                <span class="cred-optional">Optional — Streaming</span>
+              </div>
+            </div>
+            <div class="cred-body">
+              <p><strong>Purpose:</strong> Authenticate the RTMP video stream to YouTube Live.</p>
+              <p><strong>How to get:</strong></p>
+              <ol>
+                <li>Go to <a href="https://studio.youtube.com" target="_blank">YouTube Studio</a></li>
+                <li>Click <strong>Create → Go Live</strong></li>
+                <li>Under "Stream Settings", copy the <strong>Stream Key</strong></li>
+                <li>Ensure your channel has live streaming enabled (may require 24hr wait for new channels)</li>
+              </ol>
+              <p><strong>Where to set:</strong></p>
+              <code>YOUTUBE_STREAM_KEY=xxxx-xxxx-xxxx-xxxx</code> in <code>.env.local</code> or as an environment variable.
+            </div>
+          </div>
+
+          <div class="cred-card">
+            <div class="cred-header">
+              <span class="cred-icon">🐧</span>
+              <div>
+                <h4>Server Requirements (Streaming)</h4>
+                <span class="cred-optional">Infrastructure</span>
+              </div>
+            </div>
+            <div class="cred-body">
+              <p><strong>Purpose:</strong> Run the headless streaming pipeline 24/7.</p>
+              <p><strong>Minimum specs:</strong></p>
+              <ul>
+                <li>Ubuntu 22.04+ or Debian 12+</li>
+                <li>2 vCPU, 4 GB RAM</li>
+                <li>FFmpeg installed (<code>apt install ffmpeg</code>)</li>
+                <li>Xvfb installed (<code>apt install xvfb</code>)</li>
+                <li>Node.js 18+ with npm</li>
+              </ul>
+              <p><strong>Recommended:</strong> GCP Compute Engine <code>e2-medium</code> or AWS <code>t3.medium</code></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-inner">
+        <p>♠ Spades LLM Arena — Built to benchmark AI reasoning through competitive card play.</p>
+        <p class="footer-sub">Documentation generated Feb 2026</p>
+      </div>
+    </footer>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

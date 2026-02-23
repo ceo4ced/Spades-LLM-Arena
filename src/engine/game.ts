@@ -34,11 +34,11 @@ export class GameEngine {
 
   dealHand() {
     const deck = shuffle(createDeck(this.variant));
-    const cardsPerPlayer = this.variant === 'jokers' ? 13 : 13; 
+    const cardsPerPlayer = this.variant === 'jokers' ? 13 : 13;
     // Wait, 54 cards / 4 = 13.5. 
     // Standard Spades with Jokers: Remove 2C and 2D -> 52 cards.
     // My createDeck('jokers') already removes 2C and 2D. So it returns 52 cards.
-    
+
     for (let i = 0; i < 4; i++) {
       this.state.players[i].hand = deck.slice(i * 13, (i + 1) * 13);
       this.state.players[i].bid = null;
@@ -62,8 +62,8 @@ export class GameEngine {
       partner_seat: partnerSeat,
       dealer: this.state.dealer,
       score: {
-        team1: { ...this.state.teams.team1 },
-        team2: { ...this.state.teams.team2 },
+        team1: { points: this.state.teams.team1.score, bags: this.state.teams.team1.bags },
+        team2: { points: this.state.teams.team2.score, bags: this.state.teams.team2.bags },
       },
     };
 
@@ -141,14 +141,16 @@ export class GameEngine {
     this.state.currentTrick.plays.push({ seat, card });
 
     if (!this.state.currentTrick.ledSuit) {
-      this.state.currentTrick.ledSuit = card.suit;
+      this.state.currentTrick.ledSuit = card.suit === 'J' ? 'S' : card.suit;
     }
     if (card.suit === 'S') {
       this.state.spadesBroken = true;
     }
 
     // Advance turn temporarily (will be fixed in resolveTrick if trick is full)
-    this.state.currentTurn = (this.state.currentTurn + 1) % 4;
+    if (!this.isTrickComplete()) {
+      this.state.currentTurn = (this.state.currentTurn + 1) % 4;
+    }
 
     return null;
   }
