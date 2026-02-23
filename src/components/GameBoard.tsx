@@ -65,8 +65,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
     });
 
     return (
-      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm max-w-full`}>
-        <div className="font-bold text-sm truncate max-w-full">
+      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm w-full min-w-0 overflow-hidden`}>
+        <div className="font-bold text-sm truncate w-full text-center">
           {player.name}
         </div>
         <div className="text-xs">
@@ -74,9 +74,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
         {/* Show cards face-up or face-down based on settings */}
         {shouldShowCards && seat !== 0 ? (
-          <div className="mt-1 flex -space-x-6 overflow-x-auto">
+          <div className="mt-1 flex -space-x-6 w-full overflow-hidden">
             {sortedHand.map((card) => (
-              <Card key={card.id} card={card} />
+              <div key={card.id} className="shrink-0">
+                <Card card={card} />
+              </div>
             ))}
           </div>
         ) : seat !== 0 ? (
@@ -213,8 +215,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   return (
     <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col">
       {/* Row 1: Scoreboard */}
-      <div className="flex-none p-3 flex justify-between items-start z-20 gap-2">
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs max-w-[30%] shrink-0">
+      <div className="flex-none p-3 flex justify-between items-start z-20 gap-2 w-full min-w-0">
+        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden">
           <div className="font-bold text-blue-300 truncate">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
           <div>Score: {gameState.teams.team1.score}</div>
           <div>Bags: {gameState.teams.team1.bags}</div>
@@ -224,7 +226,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           Target: {gameState.targetScore}
         </div>
 
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs max-w-[30%] shrink-0 text-right">
+        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden text-right">
           <div className="font-bold text-red-300 truncate">Team 2 ({getPlayer(1).name} + {getPlayer(3).name})</div>
           <div>Score: {gameState.teams.team2.score}</div>
           <div>Bags: {gameState.teams.team2.bags}</div>
@@ -256,14 +258,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       )}
 
       {/* Row 2: Game Table — fills remaining vertical space */}
-      <div className="flex-1 min-h-0 flex items-stretch relative">
+      <div className="flex-1 min-h-0 min-w-0 flex items-stretch relative w-full">
         {/* Left Player */}
-        <div className="flex-none w-auto max-w-[22%] flex items-center justify-center px-1 overflow-hidden">
+        <div className="w-[20%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
           {renderPlayerInfo(1, 'left')}
         </div>
 
         {/* Center Column: North player + trick area */}
-        <div className="flex-1 flex flex-col items-center justify-between py-2">
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-between py-2">
           {/* North Player */}
           <div className="flex-none">
             {renderPlayerInfo(2, 'top')}
@@ -317,7 +319,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
 
         {/* Right Player */}
-        <div className="flex-none w-auto max-w-[22%] flex items-center justify-center px-1 overflow-hidden">
+        <div className="w-[20%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
           {renderPlayerInfo(3, 'right')}
         </div>
 

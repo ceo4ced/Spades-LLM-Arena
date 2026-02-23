@@ -322,24 +322,8 @@ async function waitForGameOver(page: Page): Promise<void> {
  */
 async function launchBrowser(): Promise<{ browser: Browser; page: Page }> {
     log('Launching Chromium...');
-
-    // First, detect actual screen size by launching a temporary window
-    const tempBrowser = await chromium.launch({
-        headless: CONFIG.headless,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
-    const tempPage = await tempBrowser.newPage();
-    const screenSize = await tempPage.evaluate(() => ({
-        width: window.screen.availWidth,
-        height: window.screen.availHeight,
-    }));
-    await tempBrowser.close();
-
-    // Cap viewport to actual screen size (leave room for browser chrome)
-    const chromeHeight = 80; // browser tab bar + address bar
-    const maxWidth = Math.min(CONFIG.viewportWidth, screenSize.width);
-    const maxHeight = Math.min(CONFIG.viewportHeight, screenSize.height - chromeHeight);
-    log(`Screen: ${screenSize.width}x${screenSize.height} → Viewport: ${maxWidth}x${maxHeight}`);
+    const w = CONFIG.viewportWidth;
+    const h = CONFIG.viewportHeight;
 
     const browser = await chromium.launch({
         headless: CONFIG.headless,
@@ -347,16 +331,13 @@ async function launchBrowser(): Promise<{ browser: Browser; page: Page }> {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
-            `--window-size=${maxWidth},${maxHeight + chromeHeight}`,
+            `--window-size=${w},${h}`,
             '--window-position=0,0',
         ],
     });
 
     const context = await browser.newContext({
-        viewport: {
-            width: maxWidth,
-            height: maxHeight,
-        },
+        viewport: { width: w, height: h },
     });
     const page = await context.newPage();
     log('✓ Chromium ready');
