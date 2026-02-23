@@ -4,13 +4,15 @@
  * Receives JPEG frames via stdin pipe from the orchestrator's CDP screencast
  * and streams them to YouTube Live via RTMP using FFmpeg.
  *
- * This approach captures ONLY the browser viewport (not the entire screen)
- * and works identically on macOS, Linux, and Windows.
+ * Automatically selects the best encoder for the platform:
+ *   macOS  → h264_videotoolbox (Apple silicon media engine, near-zero CPU)
+ *   NVIDIA → h264_nvenc        (Jetson Orin / desktop GPU)
+ *   Linux  → libx264            (software fallback)
  *
  * This module is only used when YOUTUBE_STREAM_KEY is set.
  */
 
-import { spawn, type ChildProcess } from 'child_process';
+import { spawn, execSync, type ChildProcess } from 'child_process';
 import type { Writable } from 'stream';
 
 export interface FFmpegConfig {
@@ -18,9 +20,10 @@ export interface FFmpegConfig {
     height: number;         // Viewport height
     youtubeStreamKey: string;
     framerate?: number;     // Default: 30
-    videoBitrate?: string;  // Default: '6000k' (bumped for 1440p)
+    videoBitrate?: string;  // Default: '6000k' (1440p quality)
     audioBitrate?: string;  // Default: '128k'
-    preset?: string;        // x264 preset. Default: 'veryfast'
+    preset?: string;        // Encoder preset override (optional)
+    forceEncoder?: string;  // Force a specific encoder (optional)
 }
 
 let ffmpegProcess: ChildProcess | null = null;
@@ -34,6 +37,88 @@ function logError(msg: string) {
     const ts = new Date().toISOString();
     console.error(`[${ts}] [ffmpeg] ❌ ${msg}`);
 }
+
+// ─── Encoder Detection ──────────────────────────────────────
+
+interface EncoderChoice {
+    codec: string;
+    presetArgs: string[];
+    label: string;
+}
+
+/**
+ * Detect the best available hardware encoder for the current platform.
+ * Falls back to libx264 if no hardware encoder is found.
+ */
+function detectBestEncoder(bitrateStr: string, framerate: number): EncoderChoice {
+    // macOS: Apple VideoToolbox (M-series and Intel with T2)
+    if (process.platform === 'darwin') {
+        if (hasEncoder('h264_videotoolbox')) {
+            return {
+                codec: 'h264_videotoolbox',
+                presetArgs: [
+                    '-realtime', '1',
+                    '-allow_sw', '0',         // Force HW only
+                    '-prio_speed', '1',
+                ],
+                label: 'Apple VideoToolbox (hardware)',
+            };
+        }
+    }
+
+    // Linux / Jetson: NVIDIA NVENC
+    if (hasEncoder('h264_nvenc')) {
+        return {
+            codec: 'h264_nvenc',
+            presetArgs: [
+                '-preset', 'p4',              // Balanced speed/quality
+                '-tune', 'll',                // Low latency
+                '-rc', 'cbr',                 // Constant bitrate for streaming
+                '-b:v', bitrateStr,
+                '-gpu', '0',
+            ],
+            label: 'NVIDIA NVENC (hardware)',
+        };
+    }
+
+    // Linux: VAAPI (Intel/AMD iGPU)
+    if (hasEncoder('h264_vaapi')) {
+        return {
+            codec: 'h264_vaapi',
+            presetArgs: [
+                '-vaapi_device', '/dev/dri/renderD128',
+            ],
+            label: 'VAAPI (hardware)',
+        };
+    }
+
+    // Fallback: software x264
+    return {
+        codec: 'libx264',
+        presetArgs: [
+            '-preset', 'ultrafast',
+            '-tune', 'zerolatency',
+        ],
+        label: 'libx264 (software — expect higher CPU)',
+    };
+}
+
+/**
+ * Check if FFmpeg has a specific encoder compiled in.
+ */
+function hasEncoder(name: string): boolean {
+    try {
+        const output = execSync(`ffmpeg -hide_banner -encoders 2>/dev/null | grep ${name}`, {
+            encoding: 'utf-8',
+            timeout: 5000,
+        });
+        return output.includes(name);
+    } catch {
+        return false;
+    }
+}
+
+// ─── Stream Management ──────────────────────────────────────
 
 /**
  * Start the FFmpeg process.
@@ -52,14 +137,26 @@ export function startFFmpegStream(config: FFmpegConfig): Writable | null {
         framerate = 30,
         videoBitrate = '6000k',
         audioBitrate = '128k',
-        preset = 'veryfast',
+        forceEncoder,
     } = config;
 
     const rtmpUrl = `rtmp://a.rtmp.youtube.com/live2/${youtubeStreamKey}`;
 
-    // Build FFmpeg arguments — reading JPEG frames from stdin pipe
+    // Detect the best encoder
+    let encoder: EncoderChoice;
+    if (forceEncoder) {
+        encoder = {
+            codec: forceEncoder,
+            presetArgs: [],
+            label: `${forceEncoder} (forced)`,
+        };
+    } else {
+        encoder = detectBestEncoder(videoBitrate, framerate);
+    }
+
+    // Build FFmpeg arguments
     const args: string[] = [
-        // Input: JPEG frames piped in from Playwright CDP screencast
+        // Input: JPEG frames piped from Playwright CDP screencast
         '-f', 'image2pipe',
         '-codec:v', 'mjpeg',
         '-framerate', framerate.toString(),
@@ -69,10 +166,9 @@ export function startFFmpegStream(config: FFmpegConfig): Writable | null {
         '-f', 'lavfi',
         '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
 
-        // Video encoding
-        '-c:v', 'libx264',
-        '-preset', preset,
-        '-tune', 'zerolatency',
+        // Video encoding (platform-specific)
+        '-c:v', encoder.codec,
+        ...encoder.presetArgs,
         '-maxrate', videoBitrate,
         '-bufsize', `${parseInt(videoBitrate) * 2}k`,
         '-pix_fmt', 'yuv420p',
@@ -91,31 +187,26 @@ export function startFFmpegStream(config: FFmpegConfig): Writable | null {
 
     log(`Starting FFmpeg stream to YouTube...`);
     log(`  Resolution: ${width}x${height} @ ${framerate}fps`);
+    log(`  Encoder:    ${encoder.label}`);
     log(`  Bitrate:    ${videoBitrate} video / ${audioBitrate} audio`);
-    log(`  Preset:     ${preset}`);
     log(`  Input:      stdin pipe (JPEG frames from CDP screencast)`);
     log(`  RTMP URL:   rtmp://a.rtmp.youtube.com/live2/****`);
 
     ffmpegProcess = spawn('ffmpeg', args, {
-        stdio: ['pipe', 'pipe', 'pipe'],  // stdin writable for frame piping
+        stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    ffmpegProcess.stdout?.on('data', (_data: Buffer) => {
-        // FFmpeg outputs progress to stderr, stdout is rarely used
-    });
+    ffmpegProcess.stdout?.on('data', (_data: Buffer) => { });
 
     ffmpegProcess.stderr?.on('data', (data: Buffer) => {
         const output = data.toString().trim();
-        // Only log important FFmpeg messages, not the frame-by-frame progress
         if (output.includes('error') || output.includes('Error') ||
             output.includes('Opening') || output.includes('Stream mapping') ||
             output.includes('Output #0') || output.includes('frame=')) {
-            // Rate-limit frame= progress lines
             if (output.includes('frame=')) {
-                // Only log every ~5 seconds worth of frames
                 const match = output.match(/frame=\s*(\d+)/);
                 if (match && parseInt(match[1]) % 150 === 0) {
-                    log(output.substring(0, 120));
+                    log(output.substring(0, 140));
                 }
             } else {
                 log(output);
@@ -138,7 +229,7 @@ export function startFFmpegStream(config: FFmpegConfig): Writable | null {
         ffmpegProcess = null;
     });
 
-    log('✓ FFmpeg process launched (waiting for frames on stdin)');
+    log('✓ FFmpeg process launched');
     return ffmpegProcess.stdin as Writable;
 }
 
@@ -167,15 +258,9 @@ export function writeFrame(jpegBuffer: Buffer): boolean {
 export function stopFFmpegStream(): void {
     if (ffmpegProcess) {
         log('Closing FFmpeg stdin and sending SIGTERM...');
-
-        // Close stdin first to signal end-of-stream
-        try {
-            ffmpegProcess.stdin?.end();
-        } catch { /* ignore */ }
-
+        try { ffmpegProcess.stdin?.end(); } catch { /* ignore */ }
         ffmpegProcess.kill('SIGTERM');
 
-        // Force kill after 5 seconds if it hasn't stopped
         setTimeout(() => {
             if (ffmpegProcess) {
                 log('Force-killing FFmpeg...');
