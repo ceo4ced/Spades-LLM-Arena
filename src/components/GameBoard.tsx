@@ -215,7 +215,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   return (
     <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col">
       {/* Row 1: Scoreboard */}
-      <div className="flex-none p-3 flex justify-between items-start z-20 gap-2 w-full min-w-0">
+      <div className="flex-none px-6 py-3 flex justify-between items-start z-20 gap-2 w-full min-w-0">
         <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden">
           <div className="font-bold text-blue-300 truncate">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
           <div>Score: {gameState.teams.team1.score}</div>
@@ -258,7 +258,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       )}
 
       {/* Row 2: Game Table — fills remaining vertical space */}
-      <div className="flex-1 min-h-0 min-w-0 flex items-stretch relative w-full">
+      <div className="flex-1 min-h-0 min-w-0 flex items-stretch relative w-full px-4">
         {/* Left Player */}
         <div className="w-[20%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
           {renderPlayerInfo(1, 'left')}
@@ -323,8 +323,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           {renderPlayerInfo(3, 'right')}
         </div>
 
-        {/* Game Log — bottom-left overlay */}
-        <div className="absolute bottom-0 left-0 w-48 h-32 bg-black/70 rounded-tr-lg overflow-hidden flex flex-col z-10">
+        {/* Game Log — bottom-right overlay */}
+        <div className="absolute bottom-0 right-4 w-48 h-32 bg-black/70 rounded-tl-lg overflow-hidden flex flex-col z-10">
           <div className="bg-black/80 px-2 py-1 text-[10px] font-bold text-gray-300 uppercase tracking-wider">Game Log</div>
           <div className="flex-1 overflow-y-auto px-2 py-1 text-[10px] text-gray-300 font-mono space-y-0.5">
             {logs.map((log, i) => (
