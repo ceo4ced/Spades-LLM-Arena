@@ -58,7 +58,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   const renderCardText = (hand: CardType[], seat: number) => {
     const sorted = sortHand(hand, seat);
     return (
-      <div className="mt-1 text-xs leading-relaxed flex flex-wrap gap-x-1 gap-y-0.5 justify-center">
+      <div className="mt-1 text-sm leading-relaxed flex flex-wrap gap-x-1.5 gap-y-0.5 justify-center">
         {sorted.map((card, i) => (
           <span key={card.id}>
             <span className={SUIT_COLORS[card.suit]}>
@@ -78,18 +78,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
     const shouldShowCards = showCards[seat];
 
     return (
-      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm max-w-[240px] min-w-0`}>
-        <div className="font-bold text-sm truncate w-full text-center">
+      <div className={`flex flex-col items-center p-3 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm max-w-[280px] min-w-0`}>
+        <div className="font-bold text-base truncate w-full text-center">
           {player.name}
         </div>
-        <div className="text-xs">
+        <div className="text-sm">
           Bid: {player.bid !== null ? player.bid : '-'} | Won: {player.tricksWon}
         </div>
         {/* Cards as text or just a count */}
         {shouldShowCards ? (
           renderCardText(player.hand, seat)
         ) : (
-          <div className="mt-1 text-xs text-white/50">
+          <div className="mt-1 text-sm text-white/50">
             🃏 {player.hand.length} cards
           </div>
         )}
@@ -102,26 +102,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
 
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-50">
-        <div className="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center gap-4">
-          <h2 className="text-2xl font-bold">Your Bid</h2>
-          <div className="flex items-center gap-4">
+        <div className="bg-white p-8 rounded-xl shadow-2xl flex flex-col items-center gap-5">
+          <h2 className="text-3xl font-bold">Your Bid</h2>
+          <div className="flex items-center gap-5">
             <button
               onClick={() => setBidValue(Math.max(0, bidValue - 1))}
-              className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-xl"
+              className="w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-2xl"
             >-</button>
-            <span className="text-4xl font-mono font-bold w-16 text-center">{bidValue}</span>
+            <span className="text-5xl font-mono font-bold w-20 text-center">{bidValue}</span>
             <button
               onClick={() => setBidValue(Math.min(13, bidValue + 1))}
-              className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-xl"
+              className="w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300 font-bold text-2xl"
             >+</button>
           </div>
           <button
             onClick={() => onBid(bidValue)}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg"
+            className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold text-lg hover:bg-blue-700 shadow-lg"
           >
             Place Bid
           </button>
-          <div className="text-sm text-gray-500">
+          <div className="text-base text-gray-500">
             (0 is Nil - 100 points bonus/penalty)
           </div>
         </div>
@@ -133,17 +133,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
     <div className="relative w-full h-full bg-green-900 overflow-hidden flex flex-col">
       {/* Row 1: Scoreboard */}
       <div className="flex-none px-6 py-3 flex justify-between items-start z-20 gap-2 w-full min-w-0">
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden">
+        <div className="bg-black/50 p-3 rounded text-white backdrop-blur-sm text-sm min-w-0 overflow-hidden">
           <div className="font-bold text-blue-300 truncate">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
           <div>Score: {gameState.teams.team1.score}</div>
           <div>Bags: {gameState.teams.team1.bags}</div>
         </div>
 
-        <div className="text-center text-white/50 text-xs font-mono bg-black/30 px-2 py-1 rounded mt-1 shrink-0">
+        <div className="text-center text-white/50 text-sm font-mono bg-black/30 px-3 py-1.5 rounded mt-1 shrink-0">
           Target: {gameState.targetScore}
         </div>
 
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden text-right">
+        <div className="bg-black/50 p-3 rounded text-white backdrop-blur-sm text-sm min-w-0 overflow-hidden text-right">
           <div className="font-bold text-red-300 truncate">Team 2 ({getPlayer(1).name} + {getPlayer(3).name})</div>
           <div>Score: {gameState.teams.team2.score}</div>
           <div>Bags: {gameState.teams.team2.bags}</div>
@@ -154,7 +154,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       {isPaused && (
         <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-40 flex items-center justify-center p-4">
           <div className="bg-white/10 border border-white/20 p-8 rounded-2xl shadow-2xl flex flex-col items-center gap-6 max-w-sm w-full backdrop-blur-lg">
-            <h2 className="text-4xl font-bold text-white tracking-widest uppercase mb-2">Paused</h2>
+            <h2 className="text-5xl font-bold text-white tracking-widest uppercase mb-2">Paused</h2>
             <div className="flex flex-col gap-4 w-full">
               <button
                 onClick={onTogglePause}
@@ -190,11 +190,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
 
           {/* Trick Area — centered vertically in remaining space */}
           <div className="flex-1 flex items-center justify-center">
-            <div className="relative w-72 h-56 flex items-center justify-center">
+            <div className="relative w-80 h-64 flex items-center justify-center">
               <div className="absolute inset-0 bg-green-800/30 rounded-full blur-xl"></div>
 
               {/* Played cards fanned out with corner overlap */}
               {gameState.currentTrick.plays.map((play, i) => {
+                // Final resting positions in the trick pile
                 const seatPositions: Record<number, { x: number; y: number; rotate: number }> = {
                   0: { x: 0, y: 45, rotate: 0 },
                   1: { x: -50, y: 0, rotate: -8 },
@@ -202,25 +203,34 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
                   3: { x: 50, y: 0, rotate: 8 },
                 };
 
+                // Start positions: farther out toward each player's box
+                const startDistance: Record<number, { x: number; y: number }> = {
+                  0: { x: 0, y: 220 },     // South — starts below near player box
+                  1: { x: -280, y: 0 },    // West — starts left near player box
+                  2: { x: 0, y: -220 },    // North — starts above near player box
+                  3: { x: 280, y: 0 },     // East — starts right near player box
+                };
+
                 const pos = seatPositions[play.seat] || { x: 0, y: 0, rotate: 0 };
+                const start = startDistance[play.seat] || { x: 0, y: 0 };
 
                 return (
                   <motion.div
                     key={`${play.seat}-${play.card.id}`}
-                    initial={{ opacity: 0, scale: 0.3, x: pos.x * 3, y: pos.y * 3 }}
+                    initial={{ opacity: 0, scale: 0.15, x: start.x, y: start.y }}
                     animate={{ opacity: 1, scale: 1.1, x: pos.x, y: pos.y, rotate: pos.rotate }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                    transition={{ type: 'spring', stiffness: 120, damping: 18, mass: 0.8 }}
                     className="absolute"
                     style={{
                       left: '50%',
                       top: '50%',
-                      marginLeft: '-28px',
-                      marginTop: '-40px',
+                      marginLeft: '-40px',
+                      marginTop: '-56px',
                       zIndex: 10 + i,
                     }}
                   >
                     <Card card={play.card} />
-                    <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded whitespace-nowrap">
                       {getPlayer(play.seat).name}
                     </div>
                   </motion.div>

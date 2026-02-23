@@ -9,11 +9,16 @@ import { GameBoard } from './components/GameBoard';
 import { GameSetup } from './components/GameSetup';
 import { SplashScreen } from './components/SplashScreen';
 import { ChatPanel, ChatMessage } from './components/ChatPanel';
+import { Dashboard } from './components/Dashboard';
+import { ModelDetail } from './components/ModelDetail';
 import { GameConfig } from './engine/types';
+
+type Screen = 'splash' | 'setup' | 'game' | 'dashboard' | 'model_detail';
 
 export default function App() {
   const { gameState, logs, isHumanTurn, isPaused, initGame, humanAction, togglePause, quitGame } = useGame();
-  const [screen, setScreen] = useState<'splash' | 'setup' | 'game'>('splash');
+  const [screen, setScreen] = useState<Screen>('splash');
+  const [selectedModel, setSelectedModel] = useState<string>('');
 
   const handleQuit = () => {
     quitGame();
@@ -86,16 +91,20 @@ export default function App() {
         return acc;
       }
 
-      // Everything else is a game action
-      acc.push({
-        id: i,
-        sender: 'System',
-        seat: -1,
-        team: 1 as const,
-        text: log,
-        type: 'action' as const,
-        timestamp: Date.now(),
-      });
+      // Only show game-over messages in the chat — skip all other internal logs
+      // (game init, team bid totals, result saved, etc. only belong in the game log)
+      if (log.startsWith('Game Over')) {
+        acc.push({
+          id: i,
+          sender: 'System',
+          seat: -1,
+          team: 1 as const,
+          text: log,
+          type: 'action' as const,
+          timestamp: Date.now(),
+        });
+      }
+
       return acc;
     }, []);
   }, [logs, gameState]);
@@ -105,9 +114,36 @@ export default function App() {
     return <SplashScreen onComplete={() => setScreen('setup')} />;
   }
 
+  // Dashboard
+  if (screen === 'dashboard') {
+    return (
+      <Dashboard
+        onBack={() => setScreen('setup')}
+        onPlay={() => setScreen('setup')}
+        onModelClick={(name) => { setSelectedModel(name); setScreen('model_detail'); }}
+      />
+    );
+  }
+
+  // Model Detail subpage
+  if (screen === 'model_detail') {
+    return (
+      <ModelDetail
+        modelName={selectedModel}
+        onBack={() => setScreen('dashboard')}
+        onPlay={() => setScreen('setup')}
+      />
+    );
+  }
+
   // Setup / menu screen
   if (screen === 'setup') {
-    return <GameSetup onStart={handleStart} />;
+    return (
+      <GameSetup
+        onStart={handleStart}
+        onLeaderboard={() => setScreen('dashboard')}
+      />
+    );
   }
 
   // Loading state

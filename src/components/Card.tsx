@@ -15,9 +15,9 @@ export const Card: React.FC<CardProps> = ({ card, onClick, playable, faceDown, s
   const cardId = typeof card === 'string' ? card : card.id;
   const suit = cardId.slice(-1);
   const rank = cardId.slice(0, -1);
-  
+
   const isRed = suit === 'H' || suit === 'D';
-  
+
   const suitIcon = {
     'S': '♠',
     'H': '♥',
@@ -26,12 +26,12 @@ export const Card: React.FC<CardProps> = ({ card, onClick, playable, faceDown, s
   }[suit];
 
   const sizeClasses = size === 'sm'
-    ? { card: 'w-10 h-14', rank: 'text-[10px]', suit: 'text-base', faceInner: 'w-7 h-10', faceSuit: 'text-sm' }
-    : { card: 'w-16 h-24', rank: 'text-sm', suit: 'text-2xl', faceInner: 'w-12 h-20', faceSuit: 'text-2xl' };
+    ? { card: 'w-12 h-16', rank: 'text-xs', suit: 'text-lg', faceInner: 'w-9 h-12', faceSuit: 'text-base' }
+    : { card: 'w-20 h-28', rank: 'text-base', suit: 'text-3xl', faceInner: 'w-14 h-22', faceSuit: 'text-3xl' };
 
   if (faceDown) {
     return (
-      <div 
+      <div
         className={`${sizeClasses.card} bg-blue-800 rounded-lg border-2 border-white shadow-md flex items-center justify-center ${className}`}
       >
         <div className={`${sizeClasses.faceInner} border border-blue-600 rounded flex items-center justify-center`}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameConfig } from '../engine/types';
 import { motion } from 'motion/react';
 import { SettingsModal } from './SettingsModal';
@@ -6,6 +6,7 @@ import { Settings as SettingsIcon } from 'lucide-react';
 
 interface GameSetupProps {
   onStart: (config: GameConfig) => void;
+  onLeaderboard?: () => void;
 }
 
 const OPENROUTER_MODELS = [
@@ -21,7 +22,7 @@ const OPENROUTER_MODELS = [
   { id: 'microsoft/phi-3-medium-128k-instruct', name: 'Phi-3 Medium' },
 ];
 
-export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
+export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard }) => {
   const [variant, setVariant] = useState<'standard' | 'jokers'>('standard');
   const [targetScore, setTargetScore] = useState<number>(500);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -46,6 +47,63 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
     const openRouterKey = localStorage.getItem('spades_openrouter_key') || '';
     onStart({ variant, players, targetScore, openrouter_api_key: openRouterKey });
   };
+
+  // ─── Auto-start countdown (60s idle) ─────────────────
+  const AUTO_START_SECONDS = 60;
+  const [countdown, setCountdown] = useState(AUTO_START_SECONDS);
+  const countdownRef = useRef(AUTO_START_SECONDS);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasAutoStarted = useRef(false);
+
+  // Available models for auto-start random pairings
+  const AUTO_MODELS: GameConfig['players'][0]['model'][] = ['heuristic', 'random', 'heuristic', 'random'];
+  const AUTO_NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
+
+  const autoStart = useCallback(() => {
+    if (hasAutoStarted.current) return;
+    hasAutoStarted.current = true;
+    // TODO: Check for tournament schedule here — if tournament exists, defer to it
+    const openRouterKey = localStorage.getItem('spades_openrouter_key') || '';
+    const autoConfig: GameConfig = {
+      variant: 'jokers',
+      targetScore: 250,
+      openrouter_api_key: openRouterKey,
+      players: [
+        { seat: 0, type: 'bot', model: 'heuristic', name: 'Alpha (T1)' },
+        { seat: 1, type: 'bot', model: 'random', name: 'Bravo (T2)' },
+        { seat: 2, type: 'bot', model: 'heuristic', name: 'Charlie (T1)' },
+        { seat: 3, type: 'bot', model: 'random', name: 'Delta (T2)' },
+      ],
+    };
+    onStart(autoConfig);
+  }, [onStart]);
+
+  // Reset countdown on any interaction
+  const resetCountdown = useCallback(() => {
+    countdownRef.current = AUTO_START_SECONDS;
+    setCountdown(AUTO_START_SECONDS);
+  }, []);
+
+  useEffect(() => {
+    // Start interval
+    timerRef.current = setInterval(() => {
+      countdownRef.current -= 1;
+      setCountdown(countdownRef.current);
+      if (countdownRef.current <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        autoStart();
+      }
+    }, 1000);
+
+    // Reset on deliberate user interaction (not mousemove — that resets too easily)
+    const events = ['click', 'keydown', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, resetCountdown));
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      events.forEach(e => window.removeEventListener(e, resetCountdown));
+    };
+  }, [autoStart, resetCountdown]);
 
   const renderPlayerConfig = (seat: number, label: string) => {
     const player = players[seat];
@@ -105,18 +163,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
   };
 
   return (
-    <div className="h-screen flex items-center justify-center p-4 relative bg-black overflow-hidden">
-      {/* Video Background */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
-      >
-        <source src="/spades_background.mp4" type="video/mp4" />
-      </video>
-      <div className="absolute inset-0 bg-black/40 z-0"></div>
+    <div className="h-screen flex items-center justify-center p-4 relative bg-gradient-to-br from-gray-900 via-green-950 to-gray-900 overflow-hidden">
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -130,6 +177,24 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
         >
           <SettingsIcon className="w-6 h-6 text-gray-600 group-hover:text-gray-800" />
         </button>
+
+        {/* Auto-start countdown — upper left */}
+        <div className="absolute top-8 left-8 flex items-center gap-2">
+          <div className="flex flex-col items-start">
+            <span className="text-[10px] text-gray-400 tracking-wide">
+              Auto-start in
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg font-bold font-mono text-gray-600">{countdown}s</span>
+              <div className="w-16 h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500 rounded-full transition-all duration-1000 ease-linear"
+                  style={{ width: `${(countdown / AUTO_START_SECONDS) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
         <h1 className="text-4xl font-bold text-center mb-2 text-gray-800">Spades AI Benchmark</h1>
         <p className="text-center text-gray-500 mb-8">Configure teams and AI models to compete.</p>
@@ -207,15 +272,25 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
           </div>
         </div>
 
-        <div className="mt-10 flex justify-center">
+        <div className="mt-10 flex justify-center gap-4">
           <button
             onClick={handleStart}
             className="px-12 py-4 bg-green-600 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-green-700 transform hover:scale-105 transition-all"
           >
             Start Match
           </button>
+          {onLeaderboard && (
+            <button
+              onClick={onLeaderboard}
+              className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
+            >
+              🏆 Leaderboard
+            </button>
+          )}
         </div>
       </motion.div>
+
+
 
       {isSettingsOpen && (
         <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

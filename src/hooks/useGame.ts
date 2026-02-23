@@ -6,6 +6,7 @@ import { RandomAgent } from '../agents/random_agent';
 import { HeuristicAgent } from '../agents/heuristic_agent';
 import { LLMAgent } from '../agents/llm_agent';
 import { OpenRouterAgent } from '../agents/openrouter_agent';
+import { saveResult } from '../engine/resultsStore';
 
 export function useGame() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -16,6 +17,7 @@ export function useGame() {
   const agentsRef = useRef<(Agent | null)[]>([]);
   const isRunningRef = useRef(false);
   const loopIdRef = useRef(0);
+  const modelConfigRef = useRef<{ team1Models: string[]; team2Models: string[] }>({ team1Models: [], team2Models: [] });
 
   const addLog = (msg: string) => setLogs(prev => [...prev.slice(-49), msg]); // Keep last 50 logs
 
@@ -61,7 +63,26 @@ export function useGame() {
 
     // Check for game over
     if (state.phase === 'game_over') {
-      addLog(`Game Over! Winner: ${state.teams.team1.score >= state.targetScore ? 'Team 1' : 'Team 2'}`);
+      const winner = state.teams.team1.score >= state.targetScore ? 1 : 2;
+      addLog(`Game Over! Winner: ${winner === 1 ? 'Team 1' : 'Team 2'}`);
+
+      // Auto-save result to leaderboard
+      try {
+        saveResult({
+          date: new Date().toISOString(),
+          team1Models: modelConfigRef.current.team1Models,
+          team2Models: modelConfigRef.current.team2Models,
+          team1Score: state.teams.team1.score,
+          team2Score: state.teams.team2.score,
+          team1Bags: state.teams.team1.bags,
+          team2Bags: state.teams.team2.bags,
+          winner: winner as 1 | 2,
+          targetScore: state.targetScore,
+          handsPlayed: state.handNumber,
+        });
+        addLog('Result saved to leaderboard.');
+      } catch (e) { console.error('Failed to save result:', e); }
+
       isRunningRef.current = false;
       setGameState({ ...engine.state });
       setIsHumanTurn(false);
@@ -201,6 +222,17 @@ export function useGame() {
       }
     });
     agentsRef.current = agents;
+
+    // Store model names for result saving
+    const getModelLabel = (p: GameConfig['players'][0]) => {
+      if (p.type === 'human') return 'Human';
+      if (p.model === 'openrouter' && p.openrouter_model) return p.openrouter_model.split('/').pop() || p.openrouter_model;
+      return p.model;
+    };
+    modelConfigRef.current = {
+      team1Models: [getModelLabel(config.players[0]), getModelLabel(config.players[2])],
+      team2Models: [getModelLabel(config.players[1]), getModelLabel(config.players[3])],
+    };
 
     setGameState({ ...engine.state });
     setLogs(['Game initialized. Starting...']);

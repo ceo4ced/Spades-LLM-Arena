@@ -69,7 +69,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, logs }) => {
             </div>
 
             {/* Chat Messages — takes most of the space */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-1.5 subtle-scroll">
+            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-1.5 subtle-scroll" style={{ overflowY: 'auto' }}>
                 {messages.length === 0 ? (
                     <div className="text-center text-gray-600 text-xs mt-8">
                         <div className="text-2xl mb-2">♠</div>
