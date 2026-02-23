@@ -73,22 +73,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           Bid: {player.bid !== null ? player.bid : '-'} | Won: {player.tricksWon}
         </div>
         {/* Show cards face-up or face-down based on settings */}
-        {shouldShowCards && seat !== 0 ? (
+        {shouldShowCards ? (
           <div className="mt-1 flex -space-x-6 w-full overflow-hidden">
             {sortedHand.map((card) => (
               <div key={card.id} className="shrink-0">
-                <Card card={card} />
+                <Card card={card}
+                  playable={seat === 0 && isHumanTurn && gameState.phase === 'playing'}
+                  onClick={seat === 0 && isHumanTurn && gameState.phase === 'playing' ? () => onPlay(card.id) : undefined}
+                />
               </div>
             ))}
           </div>
-        ) : seat !== 0 ? (
+        ) : (
           <div className="mt-1 flex -space-x-2">
             {Array.from({ length: Math.min(player.hand.length, 5) }).map((_, i) => (
               <div key={i} className="w-3 h-5 bg-blue-800 rounded border border-white/50" />
             ))}
             {player.hand.length > 5 && <span className="text-xs ml-1">+{player.hand.length - 5}</span>}
           </div>
-        ) : null}
+        )}
       </div>
     );
   };
@@ -260,7 +263,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       {/* Row 2: Game Table — fills remaining vertical space */}
       <div className="flex-1 min-h-0 min-w-0 flex items-stretch relative w-full px-4">
         {/* Left Player */}
-        <div className="w-[20%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
+        <div className="w-[15%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
           {renderPlayerInfo(1, 'left')}
         </div>
 
@@ -319,7 +322,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
 
         {/* Right Player */}
-        <div className="w-[20%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
+        <div className="w-[15%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
           {renderPlayerInfo(3, 'right')}
         </div>
 

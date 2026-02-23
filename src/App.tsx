@@ -50,17 +50,14 @@ export default function App() {
       }
 
       if (playMatch) {
-        const botName = playMatch[1];
-        const seatNum = parseInt(botName.replace('Bot ', '')) - 1;
-        const team = (seatNum === 0 || seatNum === 2) ? 1 : 2;
-        const cardId = playMatch[2];
+        // Card plays are game actions, not chat (viewers see them on the board)
         return {
           id: i,
-          sender: gameState.players[seatNum]?.name || botName,
-          seat: seatNum,
-          team: team as 1 | 2,
-          text: `Playing ${cardId} ♠`,
-          type: 'chat' as const,
+          sender: 'System',
+          seat: -1,
+          team: 1 as const,
+          text: log,
+          type: 'action' as const,
           timestamp: Date.now(),
         };
       }
