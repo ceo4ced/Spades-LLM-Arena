@@ -323,8 +323,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           {renderPlayerInfo(3, 'right')}
         </div>
 
-        {/* Game Log — bottom-right overlay */}
-        <div className="absolute bottom-0 right-4 w-48 h-32 bg-black/70 rounded-tl-lg overflow-hidden flex flex-col z-10">
+        {/* Game Log — bottom-right, full height to bottom */}
+        <div className="absolute top-0 bottom-0 right-4 w-48 bg-black/70 rounded-bl-lg overflow-hidden flex flex-col z-10">
           <div className="bg-black/80 px-2 py-1 text-[10px] font-bold text-gray-300 uppercase tracking-wider">Game Log</div>
           <div className="flex-1 overflow-y-auto px-2 py-1 text-[10px] text-gray-300 font-mono space-y-0.5">
             {logs.map((log, i) => (
@@ -336,7 +336,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       </div>
 
       {/* Row 3: Hand — fixed at bottom */}
-      <div className="flex-none w-full bg-gradient-to-t from-black/60 to-transparent pb-2 pt-1">
+      <div className="flex-none w-full pb-2 pt-1">
         {renderHand()}
       </div>
 
