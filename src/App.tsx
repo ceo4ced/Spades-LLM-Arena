@@ -50,16 +50,8 @@ export default function App() {
       }
 
       if (playMatch) {
-        // Card plays are game actions, not chat (viewers see them on the board)
-        return {
-          id: i,
-          sender: 'System',
-          seat: -1,
-          team: 1 as const,
-          text: log,
-          type: 'action' as const,
-          timestamp: Date.now(),
-        };
+        // Card plays only go in the game log, not the chat
+        return null;
       }
 
       // Everything else is a game action
@@ -72,7 +64,7 @@ export default function App() {
         type: 'action' as const,
         timestamp: Date.now(),
       };
-    });
+    }).filter(Boolean) as ChatMessage[];
   }, [logs, gameState]);
 
   // Splash screen
