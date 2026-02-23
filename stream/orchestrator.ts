@@ -42,8 +42,8 @@ const isStreaming = process.env.YOUTUBE === '1';
 // Full 2560x1440 for YouTube stream, 1920x1080 for local dev preview
 const STREAM_WIDTH = 2560;
 const STREAM_HEIGHT = 1440;
-const PREVIEW_WIDTH = 1440;
-const PREVIEW_HEIGHT = 810;
+const PREVIEW_WIDTH = 1600;
+const PREVIEW_HEIGHT = 900;
 
 const CONFIG = {
     headless: process.env.HEADLESS === '1',
