@@ -184,21 +184,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
 
   return (
     <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col">
-      {/* Header / Scoreboard */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-none z-20">
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm">
+      {/* Row 1: Scoreboard */}
+      <div className="flex-none p-3 flex justify-between items-start z-20">
+        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-sm">
           <div className="font-bold text-blue-300">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
           <div>Score: {gameState.teams.team1.score}</div>
           <div>Bags: {gameState.teams.team1.bags}</div>
         </div>
 
-        <div className="pointer-events-auto">
-          <div className="mt-2 text-center text-white/50 text-xs font-mono bg-black/30 px-2 py-1 rounded">
-            Target: {gameState.targetScore}
-          </div>
+        <div className="text-center text-white/50 text-xs font-mono bg-black/30 px-2 py-1 rounded mt-1">
+          Target: {gameState.targetScore}
         </div>
 
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm">
+        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-sm">
           <div className="font-bold text-red-300">Team 2 ({getPlayer(1).name} + {getPlayer(3).name})</div>
           <div>Score: {gameState.teams.team2.score}</div>
           <div>Bags: {gameState.teams.team2.bags}</div>
@@ -229,88 +227,91 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
       )}
 
-      {/* Main Game Area */}
-      <div className="flex-1 flex flex-col justify-center items-center relative">
-        {/* Top Player (Partner) */}
-        <div className="absolute top-16 flex flex-col items-center">
-          {renderPlayerInfo(2, 'top')}
-        </div>
-
+      {/* Row 2: Game Table — fills remaining vertical space */}
+      <div className="flex-1 min-h-0 flex items-stretch relative">
         {/* Left Player */}
-        <div className="absolute left-8 flex flex-col items-center">
+        <div className="flex-none w-40 flex items-center justify-center">
           {renderPlayerInfo(1, 'left')}
         </div>
 
+        {/* Center Column: North player + trick area */}
+        <div className="flex-1 flex flex-col items-center justify-between py-2">
+          {/* North Player */}
+          <div className="flex-none">
+            {renderPlayerInfo(2, 'top')}
+          </div>
+
+          {/* Trick Area — centered vertically in remaining space */}
+          <div className="flex-1 flex items-center justify-center">
+            <div className="relative w-72 h-56 flex items-center justify-center">
+              <div className="absolute inset-0 bg-green-800/30 rounded-full blur-xl"></div>
+
+              {/* Played cards fanned out with corner overlap */}
+              {gameState.currentTrick.plays.map((play, i) => {
+                const seatPositions: Record<number, { x: number; y: number; rotate: number }> = {
+                  0: { x: 0, y: 45, rotate: 0 },
+                  1: { x: -50, y: 0, rotate: -8 },
+                  2: { x: 0, y: -45, rotate: 0 },
+                  3: { x: 50, y: 0, rotate: 8 },
+                };
+
+                const pos = seatPositions[play.seat] || { x: 0, y: 0, rotate: 0 };
+
+                return (
+                  <motion.div
+                    key={`${play.seat}-${play.card.id}`}
+                    initial={{ opacity: 0, scale: 0.3, x: pos.x * 3, y: pos.y * 3 }}
+                    animate={{ opacity: 1, scale: 1.1, x: pos.x, y: pos.y, rotate: pos.rotate }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                    className="absolute"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      marginLeft: '-28px',
+                      marginTop: '-40px',
+                      zIndex: 10 + i,
+                    }}
+                  >
+                    <Card card={play.card} />
+                    <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                      {getPlayer(play.seat).name}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* South Player Info (above hand) */}
+          <div className="flex-none">
+            {renderPlayerInfo(0, 'bottom')}
+          </div>
+        </div>
+
         {/* Right Player */}
-        <div className="absolute right-8 flex flex-col items-center">
+        <div className="flex-none w-40 flex items-center justify-center">
           {renderPlayerInfo(3, 'right')}
         </div>
 
-        {/* Center Table (Played Cards) — pushed down to avoid overlapping North player */}
-        <div className="relative w-96 h-80 mt-8 flex items-center justify-center">
-          <div className="absolute inset-0 bg-green-800/30 rounded-full blur-xl"></div>
-
-          {/* Render played cards fanned out with slight corner overlap */}
-          {gameState.currentTrick.plays.map((play, i) => {
-            // Position each card toward its player's direction, far enough apart
-            // that the card face is visible with only slight corner overlap
-            const seatPositions: Record<number, { x: number; y: number; rotate: number }> = {
-              0: { x: 0, y: 55, rotate: 0 },      // South: below center
-              1: { x: -60, y: 0, rotate: -8 },     // West: left of center
-              2: { x: 0, y: -55, rotate: 0 },      // North: above center
-              3: { x: 60, y: 0, rotate: 8 },       // East: right of center
-            };
-
-            const pos = seatPositions[play.seat] || { x: 0, y: 0, rotate: 0 };
-
-            return (
-              <motion.div
-                key={`${play.seat}-${play.card.id}`}
-                initial={{ opacity: 0, scale: 0.3, x: pos.x * 3, y: pos.y * 3 }}
-                animate={{ opacity: 1, scale: 1.4, x: pos.x, y: pos.y, rotate: pos.rotate }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                className="absolute"
-                style={{
-                  left: '50%',
-                  top: '50%',
-                  marginLeft: '-28px',  // Half card width for centering
-                  marginTop: '-40px',   // Half card height for centering
-                  zIndex: 10 + i,       // Play order: first card lowest, last on top
-                }}
-              >
-                <Card card={play.card} />
-                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap">
-                  {getPlayer(play.seat).name}
-                </div>
-              </motion.div>
-            );
-          })}
+        {/* Game Log — bottom-left overlay */}
+        <div className="absolute bottom-0 left-0 w-48 h-32 bg-black/70 rounded-tr-lg overflow-hidden flex flex-col z-10">
+          <div className="bg-black/80 px-2 py-1 text-[10px] font-bold text-gray-300 uppercase tracking-wider">Game Log</div>
+          <div className="flex-1 overflow-y-auto px-2 py-1 text-[10px] text-gray-300 font-mono space-y-0.5">
+            {logs.map((log, i) => (
+              <div key={i}>{log}</div>
+            ))}
+            <div id="log-end" />
+          </div>
         </div>
-
-        {/* Bottom Player (User) - Rendering handled in footer */}
       </div>
 
-      {/* Bottom Area: User Info + Hand */}
-      <div className="mt-auto w-full bg-gradient-to-t from-black/80 to-transparent pb-4 pt-12">
-        <div className="flex justify-center mb-2">
-          {renderPlayerInfo(0, 'bottom')}
-        </div>
+      {/* Row 3: Hand — fixed at bottom */}
+      <div className="flex-none w-full bg-gradient-to-t from-black/60 to-transparent pb-2 pt-1">
         {renderHand()}
       </div>
 
       {/* Bidding Modal */}
       {renderBiddingControls()}
-
-      {/* Logs Sidebar (Collapsible or small) */}
-      <div className="absolute bottom-4 left-4 w-64 h-48 bg-black/70 rounded-lg overflow-hidden flex flex-col pointer-events-auto">
-        <div className="bg-black/80 p-2 text-xs font-bold text-gray-300 uppercase tracking-wider">Game Log</div>
-        <div className="flex-1 overflow-y-auto p-2 text-xs text-gray-300 font-mono space-y-1">
-          {logs.map((log, i) => (
-            <div key={i}>{log}</div>
-          ))}
-          <div id="log-end" />
-        </div>
-      </div>
     </div>
   );
 };
