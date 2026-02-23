@@ -343,45 +343,22 @@ async function launchBrowser(): Promise<{ browser: Browser; page: Page }> {
     return { browser, page };
 }
 
-async function runMatchLoop(page: Page): Promise<void> {
-    let matchNumber = 0;
+async function runBrowserSession(page: Page): Promise<void> {
+    // Navigate to the game URL — user will configure and start matches manually
+    log(`Navigating to ${CONFIG.gameUrl}...`);
+    await page.goto(CONFIG.gameUrl, { waitUntil: 'networkidle' });
+    log('✓ Page loaded — waiting for user to start a match');
 
+    // Keep-alive: just watch for the browser to close
+    // The user configures and starts matches via the UI
     while (true) {
-        matchNumber++;
-        log(`═══════════════════════════════════════════`);
-        log(`  Starting Match #${matchNumber}`);
-        log(`═══════════════════════════════════════════`);
+        await page.waitForTimeout(5000);
 
+        // Check if page is still alive
         try {
-            await setupAndStartMatch(page);
-            await waitForGameOver(page);
-
-            log(`Match #${matchNumber} complete. Waiting ${CONFIG.restartDelayMs / 1000}s before restarting...`);
-            await page.waitForTimeout(CONFIG.restartDelayMs);
-
-            // Reload the page to reset all React state cleanly
-            log('Reloading page for fresh match...');
-            await page.reload({ waitUntil: 'networkidle' });
-            await page.waitForTimeout(3000);
-
-        } catch (err: any) {
-            // If the browser/page was closed, propagate so main() can relaunch
-            if (err.message?.includes('Target page, context or browser has been closed') ||
-                err.message?.includes('Target closed') ||
-                err.message?.includes('Browser closed')) {
-                throw err;
-            }
-
-            logError(`Error in match #${matchNumber}: ${err.message}`);
-            log('Attempting recovery via page reload...');
-
-            try {
-                await page.reload({ waitUntil: 'networkidle' });
-                await page.waitForTimeout(5000);
-            } catch {
-                logError('Page reload also failed — browser may be closed.');
-                throw err;
-            }
+            await page.evaluate(() => document.title);
+        } catch {
+            throw new Error('Browser closed');
         }
     }
 }
@@ -434,8 +411,8 @@ async function main() {
                     log('✓ Streaming pipeline active: Browser → CDP Screencast → FFmpeg → YouTube');
                 }
 
-                // Run the infinite match loop (exits only on browser close)
-                await runMatchLoop(page);
+                // Run the browser session (exits only on browser close)
+                await runBrowserSession(page);
 
             } catch (err: any) {
                 logError(`Browser closed or crashed: ${err.message}`);

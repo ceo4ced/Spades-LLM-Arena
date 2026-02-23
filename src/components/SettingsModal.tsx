@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Settings as SettingsIcon, Key, Timer, Tv } from 'lucide-react';
+import { X, Settings as SettingsIcon, Key, Timer, Tv, Eye } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [cardDelay, setCardDelay] = useState(800);
   const [trickDelay, setTrickDelay] = useState(2000);
   const [youtubeStreamKey, setYoutubeStreamKey] = useState('');
+  const [showCards, setShowCards] = useState([true, false, false, false]); // per seat
 
   useEffect(() => {
     if (isOpen) {
@@ -21,6 +22,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       setCardDelay(parseInt(localStorage.getItem('spades_card_delay') || '800'));
       setTrickDelay(parseInt(localStorage.getItem('spades_trick_delay') || '2000'));
       setYoutubeStreamKey(localStorage.getItem('spades_youtube_key') || '');
+      setShowCards([
+        localStorage.getItem('spades_show_cards_0') !== 'false',
+        localStorage.getItem('spades_show_cards_1') === 'true',
+        localStorage.getItem('spades_show_cards_2') === 'true',
+        localStorage.getItem('spades_show_cards_3') === 'true',
+      ]);
     }
   }, [isOpen]);
 
@@ -30,6 +37,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     localStorage.setItem('spades_card_delay', cardDelay.toString());
     localStorage.setItem('spades_trick_delay', trickDelay.toString());
     localStorage.setItem('spades_youtube_key', youtubeStreamKey);
+    showCards.forEach((val, i) => localStorage.setItem(`spades_show_cards_${i}`, val.toString()));
     onClose();
   };
 
@@ -54,6 +62,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             </div>
 
             <div className="p-6 space-y-6 overflow-y-auto">
+              {/* Future settings can go here */}
+
+              {/* ─── Display Settings ─── */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Show Player Cards (Face Up)
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Toggle which players' hands are shown face-up on screen
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {['South (Seat 0)', 'West (Seat 1)', 'North (Seat 2)', 'East (Seat 3)'].map((label, i) => (
+                    <label key={i} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={showCards[i]}
+                        onChange={(e) => {
+                          const next = [...showCards];
+                          next[i] = e.target.checked;
+                          setShowCards(next);
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span className="text-sm text-gray-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               {/* ─── Timing Settings ─── */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">

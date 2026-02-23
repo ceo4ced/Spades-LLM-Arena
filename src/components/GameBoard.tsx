@@ -16,6 +16,23 @@ interface GameBoardProps {
 
 export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, isHumanTurn, logs, isPaused, onTogglePause, onQuitGame }) => {
   const [bidValue, setBidValue] = useState(1);
+  const [showCards, setShowCards] = useState([true, false, false, false]);
+
+  // Read show-cards settings from localStorage
+  useEffect(() => {
+    const readSettings = () => {
+      setShowCards([
+        localStorage.getItem('spades_show_cards_0') !== 'false',
+        localStorage.getItem('spades_show_cards_1') === 'true',
+        localStorage.getItem('spades_show_cards_2') === 'true',
+        localStorage.getItem('spades_show_cards_3') === 'true',
+      ]);
+    };
+    readSettings();
+    // Re-read when window gets focus (after settings modal)
+    window.addEventListener('focus', readSettings);
+    return () => window.removeEventListener('focus', readSettings);
+  }, []);
 
   const getPlayer = (seat: number) => gameState.players[seat];
   const userPlayer = getPlayer(0);
@@ -34,24 +51,44 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   const renderPlayerInfo = (seat: number, position: 'top' | 'bottom' | 'left' | 'right') => {
     const player = getPlayer(seat);
     const isTurn = gameState.currentTurn === seat;
+    const shouldShowCards = showCards[seat];
+
+    // Sort hand for display
+    const sortedHand = [...player.hand].sort((a, b) => {
+      const suitOrder: Record<string, number> = { 'S': 0, 'H': 1, 'C': 2, 'D': 3 };
+      if (suitOrder[a.suit] !== suitOrder[b.suit]) return suitOrder[a.suit] - suitOrder[b.suit];
+      const rankValues: Record<string, number> = {
+        'A': 14, 'K': 13, 'Q': 12, 'J': 11, '10': 10,
+        '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2
+      };
+      return rankValues[b.rank] - rankValues[a.rank];
+    });
 
     return (
       <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm`}>
-        <div className="font-bold text-lg">
+        <div className="font-bold text-sm">
           {player.name}
         </div>
-        <div className="text-sm">
+        <div className="text-xs">
           Bid: {player.bid !== null ? player.bid : '-'} | Won: {player.tricksWon}
         </div>
-        {/* Show card back count for opponents */}
-        {seat !== 0 && (
+        {/* Show cards face-up or face-down based on settings */}
+        {shouldShowCards && seat !== 0 ? (
+          <div className={`mt-1 flex -space-x-5 ${position === 'left' || position === 'right' ? 'flex-wrap gap-y-0.5 space-x-0 -space-x-3' : ''}`}>
+            {sortedHand.map((card) => (
+              <div key={card.id} className="transform scale-[0.45] origin-top-left">
+                <Card card={card} />
+              </div>
+            ))}
+          </div>
+        ) : seat !== 0 ? (
           <div className="mt-1 flex -space-x-2">
             {Array.from({ length: Math.min(player.hand.length, 5) }).map((_, i) => (
-              <div key={i} className="w-4 h-6 bg-blue-800 rounded border border-white/50" />
+              <div key={i} className="w-3 h-5 bg-blue-800 rounded border border-white/50" />
             ))}
-            {player.hand.length > 5 && <span className="text-xs ml-2">+{player.hand.length - 5}</span>}
+            {player.hand.length > 5 && <span className="text-xs ml-1">+{player.hand.length - 5}</span>}
           </div>
-        )}
+        ) : null}
       </div>
     );
   };
@@ -147,9 +184,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   };
 
   const renderHand = () => {
+    if (!showCards[0]) return null;
+
     // Sort hand by suit (S, H, C, D) and rank
     const sortedHand = [...userPlayer.hand].sort((a, b) => {
-      const suitOrder = { 'S': 0, 'H': 1, 'C': 2, 'D': 3 };
+      const suitOrder: Record<string, number> = { 'S': 0, 'H': 1, 'C': 2, 'D': 3 };
       if (suitOrder[a.suit] !== suitOrder[b.suit]) return suitOrder[a.suit] - suitOrder[b.suit];
       const rankValues: Record<string, number> = {
         'A': 14, 'K': 13, 'Q': 12, 'J': 11, '10': 10,
@@ -159,25 +198,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
     });
 
     return (
-      <div className="flex justify-center -space-x-8 hover:space-x-1 transition-all duration-300 py-4 overflow-x-auto px-4">
-        {sortedHand.map((card) => {
-          // Check if playable
-          // We need to know legal plays.
-          // The engine calculates this, but we don't have it explicitly in GameState unless we add it or recalculate.
-          // For now, let's just allow clicking and let the engine reject it (with visual feedback from logs).
-          // Better: pass legal plays from hook?
-          // The hook doesn't expose legal plays directly, but we can infer or just try.
-
-          return (
-            <Card
-              key={card.id}
-              card={card}
-              playable={isHumanTurn && gameState.phase === 'playing'}
-              onClick={() => isHumanTurn && gameState.phase === 'playing' && onPlay(card.id)}
-              className="transform hover:-translate-y-4 transition-transform duration-200 shadow-xl"
-            />
-          );
-        })}
+      <div className="flex justify-center -space-x-6 py-1 overflow-x-auto px-4">
+        {sortedHand.map((card) => (
+          <Card
+            key={card.id}
+            card={card}
+            playable={isHumanTurn && gameState.phase === 'playing'}
+            onClick={() => isHumanTurn && gameState.phase === 'playing' && onPlay(card.id)}
+            className="transform hover:-translate-y-3 transition-transform duration-200 shadow-lg"
+          />
+        ))}
       </div>
     );
   };
