@@ -213,7 +213,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   };
 
   return (
-    <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col" style={{ paddingRight: '50px' }}>
+    <div className="relative w-full h-full bg-green-900 overflow-hidden flex flex-col">
       {/* Row 1: Scoreboard */}
       <div className="flex-none px-6 py-3 flex justify-between items-start z-20 gap-2 w-full min-w-0">
         <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden">
@@ -323,16 +323,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
           {renderPlayerInfo(3, 'right')}
         </div>
 
-        {/* Game Log — bottom-right, full height to bottom */}
-        <div className="absolute top-0 bottom-0 right-4 w-48 bg-black/70 rounded-bl-lg overflow-hidden flex flex-col z-10">
-          <div className="bg-black/80 px-2 py-1 text-[10px] font-bold text-gray-300 uppercase tracking-wider">Game Log</div>
-          <div className="flex-1 overflow-y-auto px-2 py-1 text-[10px] text-gray-300 font-mono space-y-0.5">
-            {logs.map((log, i) => (
-              <div key={i}>{log}</div>
-            ))}
-            <div id="log-end" />
-          </div>
-        </div>
       </div>
 
       {/* Row 3: Hand — fixed at bottom */}
