@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "stream": "tsx stream/orchestrator.ts"
+    "stream": "tsx stream/orchestrator.ts",
+    "stream:live": "YOUTUBE=1 tsx stream/orchestrator.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

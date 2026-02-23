@@ -43,7 +43,7 @@ const CONFIG = {
     variant: (process.env.VARIANT as 'standard' | 'jokers') || 'jokers',
     targetScore: parseInt(process.env.TARGET_SCORE || '250', 10),
     restartDelayMs: parseInt(process.env.RESTART_DELAY_MS || '15000', 10),
-    youtubeStreamKey: process.env.YOUTUBE_STREAM_KEY || '',
+    youtubeStreamKey: process.env.YOUTUBE === '1' ? (process.env.YOUTUBE_STREAM_KEY || '') : '',
     display: process.env.DISPLAY || ':99',
     pollIntervalMs: 5000,
     viewportWidth: 2560,
