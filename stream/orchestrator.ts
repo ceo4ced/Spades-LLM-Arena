@@ -37,17 +37,29 @@ import { spawn, type ChildProcess } from 'child_process';
 import { startFFmpegStream, writeFrame, stopFFmpegStream } from './ffmpeg';
 
 // ─── Configuration ───────────────────────────────────────────
+const isStreaming = process.env.YOUTUBE === '1';
+
+// Full 2560x1440 for YouTube stream, 1280x720 for local dev preview
+const STREAM_WIDTH = 2560;
+const STREAM_HEIGHT = 1440;
+const PREVIEW_WIDTH = 1280;
+const PREVIEW_HEIGHT = 720;
+
 const CONFIG = {
     headless: process.env.HEADLESS === '1',
     gameUrl: process.env.GAME_URL || 'http://localhost:3000',
     variant: (process.env.VARIANT as 'standard' | 'jokers') || 'jokers',
     targetScore: parseInt(process.env.TARGET_SCORE || '250', 10),
     restartDelayMs: parseInt(process.env.RESTART_DELAY_MS || '15000', 10),
-    youtubeStreamKey: process.env.YOUTUBE === '1' ? (process.env.YOUTUBE_STREAM_KEY || '') : '',
+    youtubeStreamKey: isStreaming ? (process.env.YOUTUBE_STREAM_KEY || '') : '',
     display: process.env.DISPLAY || ':99',
     pollIntervalMs: 5000,
-    viewportWidth: 2560,
-    viewportHeight: 1440,
+    // Browser viewport: full res for streaming, small window for local dev
+    viewportWidth: isStreaming ? STREAM_WIDTH : PREVIEW_WIDTH,
+    viewportHeight: isStreaming ? STREAM_HEIGHT : PREVIEW_HEIGHT,
+    // CDP screencast always captures at full stream resolution
+    streamWidth: STREAM_WIDTH,
+    streamHeight: STREAM_HEIGHT,
     screencastFps: 30,
 };
 
@@ -194,13 +206,13 @@ async function startScreencast(page: Page): Promise<void> {
     await cdpSession.send('Page.startScreencast', {
         format: 'jpeg',
         quality: 85,
-        maxWidth: CONFIG.viewportWidth,
-        maxHeight: CONFIG.viewportHeight,
+        maxWidth: CONFIG.streamWidth,
+        maxHeight: CONFIG.streamHeight,
         everyNthFrame: 1, // Every frame
     });
 
     screencastActive = true;
-    log(`✓ CDP screencast active (${CONFIG.viewportWidth}x${CONFIG.viewportHeight}, JPEG q85)`);
+    log(`✓ CDP screencast active (${CONFIG.streamWidth}x${CONFIG.streamHeight}, JPEG q85)`);
 }
 
 async function stopScreencast(): Promise<void> {
@@ -391,8 +403,8 @@ async function main() {
         if (CONFIG.youtubeStreamKey) {
             log('Initializing browser-only capture pipeline...');
             startFFmpegStream({
-                width: CONFIG.viewportWidth,
-                height: CONFIG.viewportHeight,
+                width: CONFIG.streamWidth,
+                height: CONFIG.streamHeight,
                 youtubeStreamKey: CONFIG.youtubeStreamKey,
                 framerate: CONFIG.screencastFps,
             });
