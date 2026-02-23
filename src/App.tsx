@@ -29,7 +29,7 @@ export default function App() {
   const chatMessages = useMemo<ChatMessage[]>(() => {
     if (!gameState) return [];
 
-    return logs.map((log, i) => {
+    return logs.reduce<ChatMessage[]>((acc, log, i) => {
       // Parse "Bot N bids X" or "Bot N plays XX"
       const bidMatch = log.match(/^(Bot \d+) bids (\d+)/);
       const playMatch = log.match(/^(Bot \d+) plays (\w+)/);
@@ -38,7 +38,7 @@ export default function App() {
         const botName = bidMatch[1];
         const seatNum = parseInt(botName.replace('Bot ', ''));
         const team = (seatNum === 0 || seatNum === 2) ? 1 : 2;
-        return {
+        acc.push({
           id: i,
           sender: gameState.players[seatNum]?.name || botName,
           seat: seatNum,
@@ -46,16 +46,43 @@ export default function App() {
           text: `I'll bid ${bidMatch[2]}. 🤔`,
           type: 'chat' as const,
           timestamp: Date.now(),
-        };
+        });
+        return acc;
       }
 
       if (playMatch) {
         // Card plays only go in the game log, not the chat
-        return null;
+        return acc;
+      }
+
+      // Round summary header: "--- Hand N Results ---"
+      const handMatch = log.match(/^--- Hand (\d+) Results ---$/);
+      if (handMatch) {
+        // Collect the next lines that belong to this summary block
+        const summaryLines: string[] = [];
+        for (let j = i + 1; j < logs.length; j++) {
+          if (logs[j].startsWith('---') || logs[j].startsWith('---------')) break;
+          summaryLines.push(logs[j]);
+        }
+        acc.push({
+          id: i,
+          sender: `Hand ${handMatch[1]} Results`,
+          seat: -1,
+          team: 1 as const,
+          text: summaryLines.join('\n'),
+          type: 'round_summary' as const,
+          timestamp: Date.now(),
+        });
+        return acc;
+      }
+
+      // Skip lines that are part of a round summary block (already included above)
+      if (log.startsWith('Team 1:') || log.startsWith('Team 2:') || log.startsWith('Totals') || log.startsWith('------')) {
+        return acc;
       }
 
       // Everything else is a game action
-      return {
+      acc.push({
         id: i,
         sender: 'System',
         seat: -1,
@@ -63,8 +90,9 @@ export default function App() {
         text: log,
         type: 'action' as const,
         timestamp: Date.now(),
-      };
-    }).filter(Boolean) as ChatMessage[];
+      });
+      return acc;
+    }, []);
   }, [logs, gameState]);
 
   // Splash screen

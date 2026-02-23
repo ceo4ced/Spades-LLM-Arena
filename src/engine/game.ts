@@ -3,9 +3,16 @@ import { createDeck, shuffle, parseCard } from './deck';
 import { getLegalPlays, determineTrickWinner } from './rules';
 import { calculateTeamScore } from './scoring';
 
+export interface HandResult {
+  team1: { bid: number; won: number; pointsEarned: number; bagsEarned: number; totalScore: number; totalBags: number };
+  team2: { bid: number; won: number; pointsEarned: number; bagsEarned: number; totalScore: number; totalBags: number };
+  handNumber: number;
+}
+
 export class GameEngine {
   state: GameState;
   variant: 'standard' | 'jokers';
+  lastHandResult: HandResult | null = null;
 
   constructor(targetScore: number = 500, variant: 'standard' | 'jokers' = 'standard') {
     this.variant = variant;
@@ -178,10 +185,34 @@ export class GameEngine {
   }
 
   scoreHand() {
+    const prevT1 = { ...this.state.teams.team1 };
+    const prevT2 = { ...this.state.teams.team2 };
+
+    const t1Bid = (this.state.players[0].bid || 0) + (this.state.players[2].bid || 0);
+    const t2Bid = (this.state.players[1].bid || 0) + (this.state.players[3].bid || 0);
+    const t1Won = this.state.players[0].tricksWon + this.state.players[2].tricksWon;
+    const t2Won = this.state.players[1].tricksWon + this.state.players[3].tricksWon;
+
     const t1 = calculateTeamScore(this.state.players[0], this.state.players[2], this.state.teams.team1);
     const t2 = calculateTeamScore(this.state.players[1], this.state.players[3], this.state.teams.team2);
     this.state.teams.team1 = t1;
     this.state.teams.team2 = t2;
+
+    this.lastHandResult = {
+      handNumber: this.state.handNumber,
+      team1: {
+        bid: t1Bid, won: t1Won,
+        pointsEarned: t1.score - prevT1.score,
+        bagsEarned: t1.bags - prevT1.bags + (prevT1.bags > t1.bags ? 10 : 0), // account for bag penalty reset
+        totalScore: t1.score, totalBags: t1.bags,
+      },
+      team2: {
+        bid: t2Bid, won: t2Won,
+        pointsEarned: t2.score - prevT2.score,
+        bagsEarned: t2.bags - prevT2.bags + (prevT2.bags > t2.bags ? 10 : 0),
+        totalScore: t2.score, totalBags: t2.bags,
+      },
+    };
 
     if (t1.score >= this.state.targetScore || t2.score >= this.state.targetScore) {
       this.state.phase = 'game_over';

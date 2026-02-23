@@ -6,7 +6,7 @@ export interface ChatMessage {
     seat: number;         // 0-3
     team: 1 | 2;
     text: string;
-    type: 'chat' | 'action';  // chat = bot talking, action = game event
+    type: 'chat' | 'action' | 'round_summary';  // chat = bot talking, action = game event, round_summary = end-of-hand
     timestamp: number;
 }
 
@@ -19,6 +19,32 @@ const TEAM_COLORS = {
     1: { bg: 'bg-blue-900/40', border: 'border-blue-500/30', name: 'text-blue-300', dot: 'bg-blue-400' },
     2: { bg: 'bg-red-900/40', border: 'border-red-500/30', name: 'text-red-300', dot: 'bg-red-400' },
 } as const;
+
+const SUIT_MAP: Record<string, { symbol: string; color: string }> = {
+    'S': { symbol: '♠', color: 'text-black' },
+    'H': { symbol: '♥', color: 'text-red-600' },
+    'D': { symbol: '♦', color: 'text-red-600' },
+    'C': { symbol: '♣', color: 'text-black' },
+};
+
+/** Replace card codes like "4S", "KH", "10D" in a string with colored rank+suit symbols */
+const renderLogWithCards = (text: string): React.ReactNode => {
+    // Match card codes: rank (A,K,Q,J,10,2-9) followed by suit (S,H,D,C)
+    const parts = text.split(/((?:10|[AKQJ2-9])[SHDC])/g);
+    return parts.map((part, i) => {
+        const match = part.match(/^(10|[AKQJ2-9])([SHDC])$/);
+        if (match) {
+            const [, rank, suit] = match;
+            const info = SUIT_MAP[suit];
+            return (
+                <span key={i} className={`${info.color} font-bold`}>
+                    {rank}{info.symbol}
+                </span>
+            );
+        }
+        return <span key={i}>{part}</span>;
+    });
+};
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, logs }) => {
     const chatEndRef = useRef<HTMLDivElement>(null);
@@ -53,12 +79,20 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, logs }) => {
                 ) : (
                     messages.map((msg) => {
                         if (msg.type === 'action') {
-                            // Game action — compact centered event
                             return (
                                 <div key={msg.id} className="text-center">
                                     <span className="text-[10px] text-gray-500 bg-gray-800/50 px-2 py-0.5 rounded-full">
                                         {msg.text}
                                     </span>
+                                </div>
+                            );
+                        }
+
+                        if (msg.type === 'round_summary') {
+                            return (
+                                <div key={msg.id} className="bg-yellow-900/30 border border-yellow-500/40 rounded-lg px-3 py-2 my-1">
+                                    <div className="text-[11px] font-bold text-yellow-300 mb-1 text-center">🏆 {msg.sender}</div>
+                                    <div className="text-[10px] text-gray-200 leading-relaxed whitespace-pre-line">{msg.text}</div>
                                 </div>
                             );
                         }
@@ -85,11 +119,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, logs }) => {
                 <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Game Log</h3>
             </div>
 
-            {/* Game Log — bottom section, ~30% of panel */}
-            <div className="h-[30%] shrink-0 overflow-y-auto px-2 py-1 space-y-0.5 bg-black/30">
+            {/* Game Log — white background so black suits show clearly */}
+            <div className="h-[30%] shrink-0 overflow-y-auto px-2 py-1 space-y-0.5 bg-white">
                 {logs.map((log, i) => (
-                    <div key={i} className="text-[10px] text-gray-500 font-mono leading-tight">
-                        {log}
+                    <div key={i} className="text-[10px] text-gray-700 font-mono leading-tight">
+                        {renderLogWithCards(log)}
                     </div>
                 ))}
                 <div ref={logEndRef} />

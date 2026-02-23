@@ -19,6 +19,18 @@ export function useGame() {
 
   const addLog = (msg: string) => setLogs(prev => [...prev.slice(-49), msg]); // Keep last 50 logs
 
+  // Emit round summary logs after a hand ends
+  const emitRoundSummary = (engine: GameEngine) => {
+    const r = engine.lastHandResult;
+    if (!r) return;
+    addLog(`--- Hand ${r.handNumber} Results ---`);
+    addLog(`Team 1: bid ${r.team1.bid}, won ${r.team1.won} | ${r.team1.pointsEarned >= 0 ? '+' : ''}${r.team1.pointsEarned} pts, ${r.team1.bagsEarned} bags`);
+    addLog(`Team 2: bid ${r.team2.bid}, won ${r.team2.won} | ${r.team2.pointsEarned >= 0 ? '+' : ''}${r.team2.pointsEarned} pts, ${r.team2.bagsEarned} bags`);
+    addLog(`Totals — T1: ${r.team1.totalScore} pts / ${r.team1.totalBags} bags | T2: ${r.team2.totalScore} pts / ${r.team2.totalBags} bags`);
+    addLog(`--------------------------`);
+    engine.lastHandResult = null;
+  };
+
   const runLoop = useCallback(async (currentLoopId: number) => {
     if (!engineRef.current || !isRunningRef.current || loopIdRef.current !== currentLoopId) return;
 
@@ -101,6 +113,19 @@ export function useGame() {
         await new Promise(resolve => setTimeout(resolve, trickDelay));
         if (loopIdRef.current !== currentLoopId || !isRunningRef.current) return;
         engine.resolveTrick();
+        emitRoundSummary(engine);
+
+        // Add separator every 4 tricks for readability
+        const trickCount = engine.state.trickHistory.length;
+        if (trickCount > 0 && trickCount % 4 === 0 && trickCount < 13) {
+          addLog(`── Trick ${trickCount} complete ──`);
+        }
+
+        // If a new hand just started (trickHistory was reset), announce new round
+        if (engine.state.phase === 'bidding' && engine.state.trickHistory.length === 0) {
+          addLog(`═══ Round ${engine.state.handNumber} ═══`);
+        }
+
         setGameState({ ...engine.state });
       }
 
@@ -218,6 +243,16 @@ export function useGame() {
       const trickDelay = parseInt(localStorage.getItem('spades_trick_delay') || '2000');
       setTimeout(() => {
         engine.resolveTrick();
+        emitRoundSummary(engine);
+
+        const trickCount = engine.state.trickHistory.length;
+        if (trickCount > 0 && trickCount % 4 === 0 && trickCount < 13) {
+          addLog(`── Trick ${trickCount} complete ──`);
+        }
+        if (engine.state.phase === 'bidding' && engine.state.trickHistory.length === 0) {
+          addLog(`═══ Round ${engine.state.handNumber} ═══`);
+        }
+
         setGameState({ ...engine.state });
         // Resume loop after resolution
         if (isRunningRef.current) {
