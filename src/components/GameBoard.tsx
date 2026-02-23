@@ -261,7 +261,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       )}
 
       {/* Row 2: Game Table — fills remaining vertical space */}
-      <div className="flex-1 min-h-0 min-w-0 flex items-stretch relative w-full px-4">
+      <div className="flex-1 min-h-0 min-w-0 flex items-stretch relative w-full px-4 pb-2">
         {/* Left Player */}
         <div className="w-[15%] shrink-0 min-w-0 overflow-hidden flex items-center justify-center px-1">
           {renderPlayerInfo(1, 'left')}
@@ -315,8 +315,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
             </div>
           </div>
 
-          {/* South Player Info (above hand) */}
-          <div className="flex-none">
+          {/* South Player Info */}
+          <div className="flex-none pb-2">
             {renderPlayerInfo(0, 'bottom')}
           </div>
         </div>
