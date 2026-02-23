@@ -8,7 +8,8 @@
  *   3. Launches Playwright Chromium pointed at the game
  *   4. Auto-configures and starts a 4-bot match
  *   5. Monitors for game completion and auto-restarts new matches
- *   6. Optionally pipes the display to FFmpeg for YouTube RTMP streaming
+ *   6. Pipes the browser viewport (NOT the entire screen) to FFmpeg via
+ *      CDP screencast for YouTube RTMP streaming
  *
  * Usage:
  *   npm run stream                        # Headful mode (local dev, no FFmpeg)
@@ -31,9 +32,9 @@ import { resolve } from 'path';
 // Load .env.local from the project root
 loadEnv({ path: resolve(process.cwd(), '.env.local') });
 
-import { chromium, type Browser, type Page } from '@playwright/test';
+import { chromium, type Browser, type Page, type CDPSession } from '@playwright/test';
 import { spawn, type ChildProcess } from 'child_process';
-import { startFFmpegStream, stopFFmpegStream } from './ffmpeg';
+import { startFFmpegStream, writeFrame, stopFFmpegStream } from './ffmpeg';
 
 // ─── Configuration ───────────────────────────────────────────
 const CONFIG = {
@@ -45,8 +46,9 @@ const CONFIG = {
     youtubeStreamKey: process.env.YOUTUBE_STREAM_KEY || '',
     display: process.env.DISPLAY || ':99',
     pollIntervalMs: 5000,
-    viewportWidth: 1920,
-    viewportHeight: 1080,
+    viewportWidth: 2560,
+    viewportHeight: 1440,
+    screencastFps: 30,
 };
 
 // ─── Logging ─────────────────────────────────────────────────
@@ -155,6 +157,61 @@ function stopViteServer() {
         viteProcess.kill();
         viteProcess = null;
         log('Vite dev server stopped');
+    }
+}
+
+// ─── CDP Screencast (Browser-Only Capture) ───────────────────
+let cdpSession: CDPSession | null = null;
+let screencastActive = false;
+
+/**
+ * Start CDP Page.startScreencast to capture ONLY the browser viewport.
+ * Frames are piped as JPEG buffers to FFmpeg's stdin.
+ */
+async function startScreencast(page: Page): Promise<void> {
+    if (screencastActive) return;
+
+    log('Starting CDP screencast (browser-only capture)...');
+    cdpSession = await page.context().newCDPSession(page);
+
+    // Listen for screencast frames
+    cdpSession.on('Page.screencastFrame', async (params) => {
+        try {
+            // Acknowledge frame to keep receiving new ones
+            await cdpSession?.send('Page.screencastFrameAck', {
+                sessionId: params.sessionId,
+            });
+
+            // Decode the base64 JPEG and write to FFmpeg
+            const frameBuffer = Buffer.from(params.data, 'base64');
+            writeFrame(frameBuffer);
+        } catch {
+            // Silently ignore write failures (FFmpeg may be restarting)
+        }
+    });
+
+    // Start the screencast
+    await cdpSession.send('Page.startScreencast', {
+        format: 'jpeg',
+        quality: 85,
+        maxWidth: CONFIG.viewportWidth,
+        maxHeight: CONFIG.viewportHeight,
+        everyNthFrame: 1, // Every frame
+    });
+
+    screencastActive = true;
+    log(`✓ CDP screencast active (${CONFIG.viewportWidth}x${CONFIG.viewportHeight}, JPEG q85)`);
+}
+
+async function stopScreencast(): Promise<void> {
+    if (cdpSession && screencastActive) {
+        try {
+            await cdpSession.send('Page.stopScreencast');
+            await cdpSession.detach();
+        } catch { /* ignore */ }
+        screencastActive = false;
+        cdpSession = null;
+        log('CDP screencast stopped');
     }
 }
 
@@ -290,11 +347,12 @@ async function main() {
     log('╔═══════════════════════════════════════════╗');
     log('║   Spades LLM Arena — Stream Orchestrator  ║');
     log('╚═══════════════════════════════════════════╝');
-    log(`  Mode:     ${CONFIG.headless ? 'Headless' : 'Headful (visual)'}`);
-    log(`  Variant:  ${CONFIG.variant}`);
-    log(`  Score:    ${CONFIG.targetScore}`);
-    log(`  URL:      ${CONFIG.gameUrl}`);
-    log(`  YouTube:  ${CONFIG.youtubeStreamKey ? 'ENABLED' : 'DISABLED'}`);
+    log(`  Mode:       ${CONFIG.headless ? 'Headless' : 'Headful (visual)'}`);
+    log(`  Variant:    ${CONFIG.variant}`);
+    log(`  Score:      ${CONFIG.targetScore}`);
+    log(`  URL:        ${CONFIG.gameUrl}`);
+    log(`  Resolution: ${CONFIG.viewportWidth}x${CONFIG.viewportHeight}`);
+    log(`  YouTube:    ${CONFIG.youtubeStreamKey ? 'ENABLED (CDP screencast → FFmpeg → RTMP)' : 'DISABLED'}`);
     log('');
 
     let browser: Browser | null = null;
@@ -329,16 +387,23 @@ async function main() {
         const page = await context.newPage();
         log('✓ Chromium ready');
 
-        // Step 4: Start FFmpeg streaming if YouTube key is provided
+        // Step 4: Start FFmpeg + CDP screencast if YouTube key is provided
         if (CONFIG.youtubeStreamKey) {
-            log('Starting FFmpeg RTMP stream to YouTube...');
+            log('Initializing browser-only capture pipeline...');
             startFFmpegStream({
-                display: CONFIG.display,
                 width: CONFIG.viewportWidth,
                 height: CONFIG.viewportHeight,
                 youtubeStreamKey: CONFIG.youtubeStreamKey,
+                framerate: CONFIG.screencastFps,
             });
-            log('✓ FFmpeg streaming');
+            log('✓ FFmpeg ready (waiting for frames)');
+
+            // Navigate first so CDP has a page to attach to
+            await page.goto(CONFIG.gameUrl, { waitUntil: 'networkidle' });
+
+            // Start CDP screencast — this captures ONLY the browser tab
+            await startScreencast(page);
+            log('✓ Streaming pipeline active: Browser → CDP Screencast → FFmpeg → YouTube');
         }
 
         // Step 5: Run the infinite match loop
@@ -348,6 +413,7 @@ async function main() {
         logError(`Fatal error: ${err.message}`);
     } finally {
         log('Shutting down...');
+        await stopScreencast();
         if (browser) await browser.close();
         stopFFmpegStream();
         stopViteServer();
@@ -357,16 +423,18 @@ async function main() {
 }
 
 // ─── Graceful Shutdown ───────────────────────────────────────
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     log('Received SIGINT — shutting down gracefully...');
+    await stopScreencast();
     stopFFmpegStream();
     stopViteServer();
     stopXvfb();
     process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     log('Received SIGTERM — shutting down gracefully...');
+    await stopScreencast();
     stopFFmpegStream();
     stopViteServer();
     stopXvfb();

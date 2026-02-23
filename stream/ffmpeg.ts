@@ -1,22 +1,24 @@
 /**
  * Spades LLM Arena — FFmpeg RTMP Streaming Helper
  *
- * Captures the Xvfb virtual display and streams it to YouTube Live
- * via RTMP using FFmpeg. Designed to run alongside the orchestrator.
+ * Receives JPEG frames via stdin pipe from the orchestrator's CDP screencast
+ * and streams them to YouTube Live via RTMP using FFmpeg.
+ *
+ * This approach captures ONLY the browser viewport (not the entire screen)
+ * and works identically on macOS, Linux, and Windows.
  *
  * This module is only used when YOUTUBE_STREAM_KEY is set.
- * On macOS (local dev), it can capture using avfoundation instead of x11grab.
  */
 
 import { spawn, type ChildProcess } from 'child_process';
+import type { Writable } from 'stream';
 
 export interface FFmpegConfig {
-    display: string;        // X11 display, e.g. ':99'
     width: number;          // Viewport width
     height: number;         // Viewport height
     youtubeStreamKey: string;
     framerate?: number;     // Default: 30
-    videoBitrate?: string;  // Default: '3000k'
+    videoBitrate?: string;  // Default: '6000k' (bumped for 1440p)
     audioBitrate?: string;  // Default: '128k'
     preset?: string;        // x264 preset. Default: 'veryfast'
 }
@@ -34,96 +36,71 @@ function logError(msg: string) {
 }
 
 /**
- * Start the FFmpeg process to capture the display and stream to YouTube.
+ * Start the FFmpeg process.
+ * Returns the writable stdin stream so the orchestrator can pipe JPEG frames in.
  */
-export function startFFmpegStream(config: FFmpegConfig): void {
+export function startFFmpegStream(config: FFmpegConfig): Writable | null {
     if (ffmpegProcess) {
         log('FFmpeg is already running — skipping start.');
-        return;
+        return ffmpegProcess.stdin as Writable;
     }
 
     const {
-        display,
         width,
         height,
         youtubeStreamKey,
         framerate = 30,
-        videoBitrate = '3000k',
+        videoBitrate = '6000k',
         audioBitrate = '128k',
         preset = 'veryfast',
     } = config;
 
     const rtmpUrl = `rtmp://a.rtmp.youtube.com/live2/${youtubeStreamKey}`;
 
-    // Build FFmpeg arguments
-    const args: string[] = [];
+    // Build FFmpeg arguments — reading JPEG frames from stdin pipe
+    const args: string[] = [
+        // Input: JPEG frames piped in from Playwright CDP screencast
+        '-f', 'image2pipe',
+        '-codec:v', 'mjpeg',
+        '-framerate', framerate.toString(),
+        '-i', 'pipe:0',
 
-    if (process.platform === 'linux') {
-        // X11 screen capture (Xvfb)
-        args.push(
-            '-f', 'x11grab',
-            '-video_size', `${width}x${height}`,
-            '-framerate', framerate.toString(),
-            '-i', display,
-        );
-    } else if (process.platform === 'darwin') {
-        // macOS: avfoundation screen capture
-        // Use device name for reliability (run `ffmpeg -f avfoundation -list_devices true -i ""` to list)
-        args.push(
-            '-f', 'avfoundation',
-            '-framerate', framerate.toString(),
-            '-capture_cursor', '1',
-            '-i', 'Capture screen 0:none',
-        );
-    } else {
-        // Windows: gdigrab (untested)
-        args.push(
-            '-f', 'gdigrab',
-            '-framerate', framerate.toString(),
-            '-i', 'desktop',
-        );
-    }
-
-    // Silent audio source (YouTube requires audio)
-    args.push(
+        // Silent audio source (YouTube requires an audio stream)
         '-f', 'lavfi',
         '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-    );
 
-    // Video encoding
-    args.push(
+        // Video encoding
         '-c:v', 'libx264',
         '-preset', preset,
+        '-tune', 'zerolatency',
         '-maxrate', videoBitrate,
         '-bufsize', `${parseInt(videoBitrate) * 2}k`,
         '-pix_fmt', 'yuv420p',
         '-g', (framerate * 2).toString(), // Keyframe every 2 seconds
-    );
+        '-video_size', `${width}x${height}`,
 
-    // Audio encoding
-    args.push(
+        // Audio encoding
         '-c:a', 'aac',
         '-b:a', audioBitrate,
-    );
 
-    // Output to RTMP
-    args.push(
+        // Output to RTMP
         '-f', 'flv',
         '-shortest',
         rtmpUrl,
-    );
+    ];
 
     log(`Starting FFmpeg stream to YouTube...`);
     log(`  Resolution: ${width}x${height} @ ${framerate}fps`);
     log(`  Bitrate:    ${videoBitrate} video / ${audioBitrate} audio`);
     log(`  Preset:     ${preset}`);
+    log(`  Input:      stdin pipe (JPEG frames from CDP screencast)`);
     log(`  RTMP URL:   rtmp://a.rtmp.youtube.com/live2/****`);
 
     ffmpegProcess = spawn('ffmpeg', args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['pipe', 'pipe', 'pipe'],  // stdin writable for frame piping
     });
 
-    ffmpegProcess.stdout?.on('data', (data: Buffer) => {
+    ffmpegProcess.stdout?.on('data', (_data: Buffer) => {
         // FFmpeg outputs progress to stderr, stdout is rarely used
     });
 
@@ -132,8 +109,17 @@ export function startFFmpegStream(config: FFmpegConfig): void {
         // Only log important FFmpeg messages, not the frame-by-frame progress
         if (output.includes('error') || output.includes('Error') ||
             output.includes('Opening') || output.includes('Stream mapping') ||
-            output.includes('Output #0')) {
-            log(output);
+            output.includes('Output #0') || output.includes('frame=')) {
+            // Rate-limit frame= progress lines
+            if (output.includes('frame=')) {
+                // Only log every ~5 seconds worth of frames
+                const match = output.match(/frame=\s*(\d+)/);
+                if (match && parseInt(match[1]) % 150 === 0) {
+                    log(output.substring(0, 120));
+                }
+            } else {
+                log(output);
+            }
         }
     });
 
@@ -152,7 +138,27 @@ export function startFFmpegStream(config: FFmpegConfig): void {
         ffmpegProcess = null;
     });
 
-    log('✓ FFmpeg process launched');
+    log('✓ FFmpeg process launched (waiting for frames on stdin)');
+    return ffmpegProcess.stdin as Writable;
+}
+
+/**
+ * Get the stdin writable stream (if FFmpeg is running).
+ */
+export function getFFmpegStdin(): Writable | null {
+    return ffmpegProcess?.stdin as Writable | null;
+}
+
+/**
+ * Write a single JPEG frame buffer to FFmpeg's stdin.
+ */
+export function writeFrame(jpegBuffer: Buffer): boolean {
+    if (!ffmpegProcess || !ffmpegProcess.stdin) return false;
+    try {
+        return ffmpegProcess.stdin.write(jpegBuffer);
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -160,7 +166,13 @@ export function startFFmpegStream(config: FFmpegConfig): void {
  */
 export function stopFFmpegStream(): void {
     if (ffmpegProcess) {
-        log('Sending SIGTERM to FFmpeg...');
+        log('Closing FFmpeg stdin and sending SIGTERM...');
+
+        // Close stdin first to signal end-of-stream
+        try {
+            ffmpegProcess.stdin?.end();
+        } catch { /* ignore */ }
+
         ffmpegProcess.kill('SIGTERM');
 
         // Force kill after 5 seconds if it hasn't stopped
