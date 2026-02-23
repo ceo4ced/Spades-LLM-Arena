@@ -36,7 +36,7 @@ export default function App() {
 
       if (bidMatch) {
         const botName = bidMatch[1];
-        const seatNum = parseInt(botName.replace('Bot ', '')) - 1;
+        const seatNum = parseInt(botName.replace('Bot ', ''));
         const team = (seatNum === 0 || seatNum === 2) ? 1 : 2;
         return {
           id: i,
