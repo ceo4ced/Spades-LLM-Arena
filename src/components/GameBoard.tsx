@@ -65,7 +65,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
     });
 
     return (
-      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm w-full min-w-0 overflow-hidden`}>
+      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm w-[200px] min-w-0 overflow-hidden`}>
         <div className="font-bold text-sm truncate w-full text-center">
           {player.name}
         </div>
