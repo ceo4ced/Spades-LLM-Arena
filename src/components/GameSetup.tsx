@@ -105,7 +105,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 overflow-y-auto relative bg-black">
+    <div className="h-screen flex items-center justify-center p-4 relative bg-black overflow-hidden">
       {/* Video Background */}
       <video
         autoPlay
@@ -121,7 +121,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-5xl w-full my-8 relative z-10"
+        className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto relative z-10"
       >
         <button
           onClick={() => setIsSettingsOpen(true)}
@@ -145,8 +145,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
                 <button
                   onClick={() => setVariant('standard')}
                   className={`py-2 px-4 rounded-lg border-2 text-left transition-all ${variant === 'standard'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-600'
                     }`}
                 >
                   Standard (52 Cards)
@@ -155,8 +155,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
                 <button
                   onClick={() => setVariant('jokers')}
                   className={`py-2 px-4 rounded-lg border-2 text-left transition-all ${variant === 'jokers'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-600'
                     }`}
                 >
                   Jokers (Big/Little)
@@ -173,8 +173,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart }) => {
                     key={score}
                     onClick={() => setTargetScore(score)}
                     className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${targetScore === score
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
                       }`}
                   >
                     {score}
