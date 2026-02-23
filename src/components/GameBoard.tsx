@@ -328,10 +328,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
 
       </div>
 
-      {/* Row 3: Hand — fixed at bottom */}
-      <div className="flex-none w-full pb-2 pt-1">
-        {renderHand()}
-      </div>
 
       {/* Bidding Modal */}
       {renderBiddingControls()}
