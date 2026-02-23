@@ -19,6 +19,28 @@ export function useGame() {
 
   const addLog = (msg: string) => setLogs(prev => [...prev.slice(-49), msg]); // Keep last 50 logs
 
+  // Format a card ID like "KH" into "K♥"
+  const SUIT_SYM: Record<string, string> = { 'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣' };
+  const formatCard = (cardId: string) => {
+    const suit = cardId.slice(-1);
+    const rank = cardId.slice(0, -1);
+    return `${rank}${SUIT_SYM[suit] || suit}`;
+  };
+
+  // Emit trick summary: two lines after every trick
+  const emitTrickSummary = (engine: GameEngine) => {
+    const history = engine.state.trickHistory;
+    if (history.length === 0) return;
+    const lastTrick = history[history.length - 1];
+    if (lastTrick.winner === null) return;
+    const winnerName = engine.state.players[lastTrick.winner].name;
+    const winningPlay = lastTrick.plays.find(p => p.seat === lastTrick.winner);
+    const winningCard = winningPlay ? winningPlay.card.id : '?';
+    const allCards = lastTrick.plays.map(p => p.card.id).join(', ');
+    addLog(`${winnerName} won with ${winningCard} → ${allCards}`);
+    addLog(`── Trick ${lastTrick.number} Complete ──`);
+  };
+
   // Emit round summary logs after a hand ends
   const emitRoundSummary = (engine: GameEngine) => {
     const r = engine.lastHandResult;
@@ -85,6 +107,12 @@ export function useGame() {
           // Fallback
           engine.processBid(currentSeat, { action: 'bid', value: 1, reasoning: 'Fallback' });
         }
+        // If bidding just completed, show team bid totals
+        if (engine.state.phase === 'playing') {
+          const t1Bid = (engine.state.players[0].bid || 0) + (engine.state.players[2].bid || 0);
+          const t2Bid = (engine.state.players[1].bid || 0) + (engine.state.players[3].bid || 0);
+          addLog(`Team 1 Bids ${t1Bid} | Team 2 Bids ${t2Bid}`);
+        }
       } else {
         const action = await agent.play(observation);
         addLog(`Bot ${currentSeat} plays ${action.card}`);
@@ -113,13 +141,12 @@ export function useGame() {
         await new Promise(resolve => setTimeout(resolve, trickDelay));
         if (loopIdRef.current !== currentLoopId || !isRunningRef.current) return;
         engine.resolveTrick();
-        emitRoundSummary(engine);
 
-        // Add separator every 4 tricks for readability
-        const trickCount = engine.state.trickHistory.length;
-        if (trickCount > 0 && trickCount % 4 === 0 && trickCount < 13) {
-          addLog(`── Trick ${trickCount} complete ──`);
-        }
+        // Two-line trick summary for every trick
+        emitTrickSummary(engine);
+
+        // Round summary if hand just ended
+        emitRoundSummary(engine);
 
         // If a new hand just started (trickHistory was reset), announce new round
         if (engine.state.phase === 'bidding' && engine.state.trickHistory.length === 0) {
@@ -224,7 +251,14 @@ export function useGame() {
     let error: string | null = null;
     if (action.action === 'bid') {
       error = engine.processBid(currentSeat, action as BidAction);
-      if (!error) addLog(`You bid ${(action as BidAction).value}`);
+      if (!error) {
+        addLog(`You bid ${(action as BidAction).value}`);
+        if (engine.state.phase === 'playing') {
+          const t1Bid = (engine.state.players[0].bid || 0) + (engine.state.players[2].bid || 0);
+          const t2Bid = (engine.state.players[1].bid || 0) + (engine.state.players[3].bid || 0);
+          addLog(`Team 1 Bids ${t1Bid} | Team 2 Bids ${t2Bid}`);
+        }
+      }
     } else {
       error = engine.processPlay(currentSeat, action as PlayAction);
       if (!error) addLog(`You played ${(action as PlayAction).card}`);
@@ -243,12 +277,10 @@ export function useGame() {
       const trickDelay = parseInt(localStorage.getItem('spades_trick_delay') || '2000');
       setTimeout(() => {
         engine.resolveTrick();
+
+        emitTrickSummary(engine);
         emitRoundSummary(engine);
 
-        const trickCount = engine.state.trickHistory.length;
-        if (trickCount > 0 && trickCount % 4 === 0 && trickCount < 13) {
-          addLog(`── Trick ${trickCount} complete ──`);
-        }
         if (engine.state.phase === 'bidding' && engine.state.trickHistory.length === 0) {
           addLog(`═══ Round ${engine.state.handNumber} ═══`);
         }

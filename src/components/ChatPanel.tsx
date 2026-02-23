@@ -69,7 +69,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, logs }) => {
             </div>
 
             {/* Chat Messages — takes most of the space */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-1.5">
+            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-1.5 subtle-scroll">
                 {messages.length === 0 ? (
                     <div className="text-center text-gray-600 text-xs mt-8">
                         <div className="text-2xl mb-2">♠</div>
@@ -120,7 +120,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ messages, logs }) => {
             </div>
 
             {/* Game Log — white background so black suits show clearly */}
-            <div className="h-[30%] shrink-0 overflow-y-auto px-2 py-1 space-y-0.5 bg-white">
+            <div className="h-[30%] shrink-0 overflow-y-auto px-2 py-1 space-y-0.5 bg-white subtle-scroll-dark">
                 {logs.map((log, i) => (
                     <div key={i} className="text-[10px] text-gray-700 font-mono leading-tight">
                         {renderLogWithCards(log)}

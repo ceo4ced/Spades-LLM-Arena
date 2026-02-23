@@ -55,6 +55,11 @@ export default function App() {
         return acc;
       }
 
+      // Trick-by-trick results stay in game log only, not chat
+      if (log.startsWith('── Trick') || log.includes(' won with ')) {
+        return acc;
+      }
+
       // Round summary header: "--- Hand N Results ---"
       const handMatch = log.match(/^--- Hand (\d+) Results ---$/);
       if (handMatch) {

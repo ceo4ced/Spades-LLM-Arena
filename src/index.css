@@ -21,3 +21,51 @@ body,
 *::-webkit-scrollbar {
     display: none;
 }
+
+/* Subtle thin scrollbar for chat panels */
+.subtle-scroll {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+}
+
+.subtle-scroll::-webkit-scrollbar {
+    display: block !important;
+    width: 4px !important;
+}
+
+.subtle-scroll::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.subtle-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-radius: 4px !important;
+}
+
+.subtle-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Game log variant (dark thumb on white bg) */
+.subtle-scroll-dark {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+}
+
+.subtle-scroll-dark::-webkit-scrollbar {
+    display: block !important;
+    width: 4px !important;
+}
+
+.subtle-scroll-dark::-webkit-scrollbar-track {
+    background: transparent !important;
+}
+
+.subtle-scroll-dark::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12) !important;
+    border-radius: 4px !important;
+}
+
+.subtle-scroll-dark::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25) !important;
+}
