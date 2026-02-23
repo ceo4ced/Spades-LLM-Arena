@@ -1,1 +1,23 @@
 @import "tailwindcss";
+
+/* Force the app to fill exactly the visible viewport — no scrollbars */
+html,
+body,
+#root {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    /* dynamic viewport height — compensates for browser chrome & Mac scaling */
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Hide scrollbars everywhere */
+* {
+    scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+    display: none;
+}
