@@ -65,8 +65,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
     });
 
     return (
-      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm`}>
-        <div className="font-bold text-sm">
+      <div className={`flex flex-col items-center p-2 rounded-lg ${isTurn ? 'bg-yellow-100/20 ring-2 ring-yellow-400' : 'bg-black/40'} text-white backdrop-blur-sm max-w-full`}>
+        <div className="font-bold text-sm truncate max-w-full">
           {player.name}
         </div>
         <div className="text-xs">
@@ -213,19 +213,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   return (
     <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col">
       {/* Row 1: Scoreboard */}
-      <div className="flex-none p-3 flex justify-between items-start z-20">
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-sm">
-          <div className="font-bold text-blue-300">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
+      <div className="flex-none p-3 flex justify-between items-start z-20 gap-2">
+        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs max-w-[30%] shrink-0">
+          <div className="font-bold text-blue-300 truncate">Team 1 ({getPlayer(0).name} + {getPlayer(2).name})</div>
           <div>Score: {gameState.teams.team1.score}</div>
           <div>Bags: {gameState.teams.team1.bags}</div>
         </div>
 
-        <div className="text-center text-white/50 text-xs font-mono bg-black/30 px-2 py-1 rounded mt-1">
+        <div className="text-center text-white/50 text-xs font-mono bg-black/30 px-2 py-1 rounded mt-1 shrink-0">
           Target: {gameState.targetScore}
         </div>
 
-        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-sm">
-          <div className="font-bold text-red-300">Team 2 ({getPlayer(1).name} + {getPlayer(3).name})</div>
+        <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs max-w-[30%] shrink-0 text-right">
+          <div className="font-bold text-red-300 truncate">Team 2 ({getPlayer(1).name} + {getPlayer(3).name})</div>
           <div>Score: {gameState.teams.team2.score}</div>
           <div>Bags: {gameState.teams.team2.bags}</div>
         </div>
