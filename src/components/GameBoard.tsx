@@ -213,7 +213,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
   };
 
   return (
-    <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col">
+    <div className="relative w-full h-screen bg-green-900 overflow-hidden flex flex-col" style={{ paddingRight: '50px' }}>
       {/* Row 1: Scoreboard */}
       <div className="flex-none px-6 py-3 flex justify-between items-start z-20 gap-2 w-full min-w-0">
         <div className="bg-black/50 p-2 rounded text-white backdrop-blur-sm text-xs min-w-0 overflow-hidden">
