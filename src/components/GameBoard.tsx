@@ -250,35 +250,36 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         <div className="relative w-96 h-80 mt-8 flex items-center justify-center">
           <div className="absolute inset-0 bg-green-800/30 rounded-full blur-xl"></div>
 
-          {/* Render played cards stacked in play order, centered on table */}
+          {/* Render played cards fanned out with slight corner overlap */}
           {gameState.currentTrick.plays.map((play, i) => {
-            // Small offset per card so you can see the play order:
-            // First card (lead) at bottom of stack, last card on top
-            // Offset each card slightly from center based on their seat direction
-            const seatOffsets: Record<number, { x: number; y: number; rotate: number }> = {
-              0: { x: 0, y: 20, rotate: 0 },     // South: slightly below center
-              1: { x: -25, y: 0, rotate: -6 },    // West: slightly left
-              2: { x: 0, y: -20, rotate: 0 },     // North: slightly above center
-              3: { x: 25, y: 0, rotate: 6 },      // East: slightly right
+            // Position each card toward its player's direction, far enough apart
+            // that the card face is visible with only slight corner overlap
+            const seatPositions: Record<number, { x: number; y: number; rotate: number }> = {
+              0: { x: 0, y: 55, rotate: 0 },      // South: below center
+              1: { x: -60, y: 0, rotate: -8 },     // West: left of center
+              2: { x: 0, y: -55, rotate: 0 },      // North: above center
+              3: { x: 60, y: 0, rotate: 8 },       // East: right of center
             };
 
-            const offset = seatOffsets[play.seat] || { x: 0, y: 0, rotate: 0 };
+            const pos = seatPositions[play.seat] || { x: 0, y: 0, rotate: 0 };
 
             return (
               <motion.div
                 key={`${play.seat}-${play.card.id}`}
-                initial={{ opacity: 0, scale: 0.5, x: offset.x * 3, y: offset.y * 3 }}
-                animate={{ opacity: 1, scale: 1.5, x: offset.x, y: offset.y, rotate: offset.rotate }}
+                initial={{ opacity: 0, scale: 0.3, x: pos.x * 3, y: pos.y * 3 }}
+                animate={{ opacity: 1, scale: 1.4, x: pos.x, y: pos.y, rotate: pos.rotate }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                 className="absolute"
                 style={{
                   left: '50%',
                   top: '50%',
-                  transform: `translate(-50%, -50%)`,
-                  zIndex: 10 + i, // Play order: first card lowest, last card on top
+                  marginLeft: '-28px',  // Half card width for centering
+                  marginTop: '-40px',   // Half card height for centering
+                  zIndex: 10 + i,       // Play order: first card lowest, last on top
                 }}
               >
                 <Card card={play.card} />
-                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap">
+                <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded whitespace-nowrap">
                   {getPlayer(play.seat).name}
                 </div>
               </motion.div>

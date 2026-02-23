@@ -50,10 +50,12 @@ export function useGame() {
     // Bot's turn
     // addLog(`Bot ${currentSeat} thinking...`);
 
-    // Get speed from settings
+    // Get timing settings from Settings modal
+    const cardDelay = parseInt(localStorage.getItem('spades_card_delay') || '800');
+    const trickDelay = parseInt(localStorage.getItem('spades_trick_delay') || '2000');
     const speed = parseInt(localStorage.getItem('spades_game_speed') || '500');
 
-    // Artificial delay for UI
+    // Artificial delay for UI (bot thinking time)
     await new Promise(resolve => setTimeout(resolve, speed));
 
     // Check if loop was cancelled during delay
@@ -87,10 +89,17 @@ export function useGame() {
 
       setGameState({ ...engine.state });
 
+      // Pause after each card is played so viewers can see it
+      await new Promise(resolve => setTimeout(resolve, cardDelay));
+
+      // Check if loop was cancelled during card delay
+      if (loopIdRef.current !== currentLoopId || !isRunningRef.current) return;
+
       // Check if trick is complete
       if (engine.isTrickComplete()) {
-        // Wait to see the last card
-        await new Promise(resolve => setTimeout(resolve, speed + 500)); // Extra delay
+        // Wait to see all 4 cards before resolving
+        await new Promise(resolve => setTimeout(resolve, trickDelay));
+        if (loopIdRef.current !== currentLoopId || !isRunningRef.current) return;
         engine.resolveTrick();
         setGameState({ ...engine.state });
       }
@@ -206,7 +215,7 @@ export function useGame() {
 
     // If human completed the trick, we need to resolve it
     if (engine.isTrickComplete()) {
-      const speed = parseInt(localStorage.getItem('spades_game_speed') || '500');
+      const trickDelay = parseInt(localStorage.getItem('spades_trick_delay') || '2000');
       setTimeout(() => {
         engine.resolveTrick();
         setGameState({ ...engine.state });
@@ -214,7 +223,7 @@ export function useGame() {
         if (isRunningRef.current) {
           runLoop(loopIdRef.current);
         }
-      }, speed + 500);
+      }, trickDelay);
     } else {
       // Resume loop for bots
       if (isRunningRef.current) {
