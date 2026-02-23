@@ -74,11 +74,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
         {/* Show cards face-up or face-down based on settings */}
         {shouldShowCards && seat !== 0 ? (
-          <div className={`mt-1 flex -space-x-5 ${position === 'left' || position === 'right' ? 'flex-wrap gap-y-0.5 space-x-0 -space-x-3' : ''}`}>
+          <div className="mt-1 flex -space-x-6 overflow-x-auto">
             {sortedHand.map((card) => (
-              <div key={card.id} className="transform scale-[0.45] origin-top-left">
-                <Card card={card} />
-              </div>
+              <Card key={card.id} card={card} />
             ))}
           </div>
         ) : seat !== 0 ? (
@@ -260,7 +258,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
       {/* Row 2: Game Table — fills remaining vertical space */}
       <div className="flex-1 min-h-0 flex items-stretch relative">
         {/* Left Player */}
-        <div className="flex-none w-40 flex items-center justify-center">
+        <div className="flex-none w-auto max-w-[22%] flex items-center justify-center px-1 overflow-hidden">
           {renderPlayerInfo(1, 'left')}
         </div>
 
@@ -319,7 +317,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, onBid, onPlay, 
         </div>
 
         {/* Right Player */}
-        <div className="flex-none w-40 flex items-center justify-center">
+        <div className="flex-none w-auto max-w-[22%] flex items-center justify-center px-1 overflow-hidden">
           {renderPlayerInfo(3, 'right')}
         </div>
 
