@@ -39,11 +39,11 @@ import { startFFmpegStream, writeFrame, stopFFmpegStream } from './ffmpeg';
 // ─── Configuration ───────────────────────────────────────────
 const isStreaming = process.env.YOUTUBE === '1';
 
-// Full 2560x1440 for YouTube stream, 1280x720 for local dev preview
+// Full 2560x1440 for YouTube stream, 1920x1080 for local dev preview
 const STREAM_WIDTH = 2560;
 const STREAM_HEIGHT = 1440;
-const PREVIEW_WIDTH = 1280;
-const PREVIEW_HEIGHT = 720;
+const PREVIEW_WIDTH = 1920;
+const PREVIEW_HEIGHT = 1080;
 
 const CONFIG = {
     headless: process.env.HEADLESS === '1',
@@ -317,6 +317,32 @@ async function waitForGameOver(page: Page): Promise<void> {
     }
 }
 
+/**
+ * Launch a fresh Chromium browser + context + page.
+ */
+async function launchBrowser(): Promise<{ browser: Browser; page: Page }> {
+    log('Launching Chromium...');
+    const browser = await chromium.launch({
+        headless: CONFIG.headless,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            `--window-size=${CONFIG.viewportWidth},${CONFIG.viewportHeight}`,
+        ],
+    });
+
+    const context = await browser.newContext({
+        viewport: {
+            width: CONFIG.viewportWidth,
+            height: CONFIG.viewportHeight,
+        },
+    });
+    const page = await context.newPage();
+    log('✓ Chromium ready');
+    return { browser, page };
+}
+
 async function runMatchLoop(page: Page): Promise<void> {
     let matchNumber = 0;
 
@@ -339,6 +365,13 @@ async function runMatchLoop(page: Page): Promise<void> {
             await page.waitForTimeout(3000);
 
         } catch (err: any) {
+            // If the browser/page was closed, propagate so main() can relaunch
+            if (err.message?.includes('Target page, context or browser has been closed') ||
+                err.message?.includes('Target closed') ||
+                err.message?.includes('Browser closed')) {
+                throw err;
+            }
+
             logError(`Error in match #${matchNumber}: ${err.message}`);
             log('Attempting recovery via page reload...');
 
@@ -346,8 +379,8 @@ async function runMatchLoop(page: Page): Promise<void> {
                 await page.reload({ waitUntil: 'networkidle' });
                 await page.waitForTimeout(5000);
             } catch {
-                logError('Page reload failed. Retrying in 10s...');
-                await new Promise(r => setTimeout(r, 10000));
+                logError('Page reload also failed — browser may be closed.');
+                throw err;
             }
         }
     }
@@ -367,8 +400,6 @@ async function main() {
     log(`  YouTube:    ${CONFIG.youtubeStreamKey ? 'ENABLED (CDP screencast → FFmpeg → RTMP)' : 'DISABLED'}`);
     log('');
 
-    let browser: Browser | null = null;
-
     try {
         // Step 1: Start Xvfb if on Linux
         if (CONFIG.headless && process.platform === 'linux') {
@@ -378,55 +409,49 @@ async function main() {
         // Step 2: Start Vite dev server
         await startViteServer();
 
-        // Step 3: Launch Playwright browser
-        log('Launching Chromium...');
-        browser = await chromium.launch({
-            headless: CONFIG.headless,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                `--window-size=${CONFIG.viewportWidth},${CONFIG.viewportHeight}`,
-            ],
-        });
+        // Step 3+: Launch browser and run matches in a recovery loop
+        // If the user closes the browser window, we relaunch automatically
+        while (true) {
+            let browser: Browser | null = null;
+            try {
+                const launched = await launchBrowser();
+                browser = launched.browser;
+                const page = launched.page;
 
-        const context = await browser.newContext({
-            viewport: {
-                width: CONFIG.viewportWidth,
-                height: CONFIG.viewportHeight,
-            },
-        });
-        const page = await context.newPage();
-        log('✓ Chromium ready');
+                // Start FFmpeg + CDP screencast if YouTube key is provided
+                if (CONFIG.youtubeStreamKey) {
+                    log('Initializing browser-only capture pipeline...');
+                    startFFmpegStream({
+                        width: CONFIG.streamWidth,
+                        height: CONFIG.streamHeight,
+                        youtubeStreamKey: CONFIG.youtubeStreamKey,
+                        framerate: CONFIG.screencastFps,
+                    });
+                    log('✓ FFmpeg ready (waiting for frames)');
 
-        // Step 4: Start FFmpeg + CDP screencast if YouTube key is provided
-        if (CONFIG.youtubeStreamKey) {
-            log('Initializing browser-only capture pipeline...');
-            startFFmpegStream({
-                width: CONFIG.streamWidth,
-                height: CONFIG.streamHeight,
-                youtubeStreamKey: CONFIG.youtubeStreamKey,
-                framerate: CONFIG.screencastFps,
-            });
-            log('✓ FFmpeg ready (waiting for frames)');
+                    await page.goto(CONFIG.gameUrl, { waitUntil: 'networkidle' });
+                    await startScreencast(page);
+                    log('✓ Streaming pipeline active: Browser → CDP Screencast → FFmpeg → YouTube');
+                }
 
-            // Navigate first so CDP has a page to attach to
-            await page.goto(CONFIG.gameUrl, { waitUntil: 'networkidle' });
+                // Run the infinite match loop (exits only on browser close)
+                await runMatchLoop(page);
 
-            // Start CDP screencast — this captures ONLY the browser tab
-            await startScreencast(page);
-            log('✓ Streaming pipeline active: Browser → CDP Screencast → FFmpeg → YouTube');
+            } catch (err: any) {
+                logError(`Browser closed or crashed: ${err.message}`);
+                await stopScreencast();
+                try { if (browser) await browser.close(); } catch { /* already closed */ }
+
+                log('🔄 Relaunching browser in 3 seconds...');
+                await new Promise(r => setTimeout(r, 3000));
+            }
         }
-
-        // Step 5: Run the infinite match loop
-        await runMatchLoop(page);
 
     } catch (err: any) {
         logError(`Fatal error: ${err.message}`);
     } finally {
         log('Shutting down...');
         await stopScreencast();
-        if (browser) await browser.close();
         stopFFmpegStream();
         stopViteServer();
         stopXvfb();
