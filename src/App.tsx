@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useGame } from './hooks/useGame';
 import { GameBoard } from './components/GameBoard';
 import { GameSetup } from './components/GameSetup';
@@ -19,6 +19,8 @@ export default function App() {
   const { gameState, logs, isHumanTurn, isPaused, initGame, humanAction, togglePause, quitGame } = useGame();
   const [screen, setScreen] = useState<Screen>('splash');
   const [selectedModel, setSelectedModel] = useState<string>('');
+  const [chatOpen, setChatOpen] = useState(false);
+  const toggleChat = useCallback(() => setChatOpen(prev => !prev), []);
 
   const handleQuit = () => {
     quitGame();
@@ -155,11 +157,11 @@ export default function App() {
     );
   }
 
-  // Game board — 80% left / 20% right chat panel
+  // Game board — responsive layout: board fills available space, chat on right
   return (
-    <div className="flex w-full h-screen overflow-hidden">
-      {/* Left: Game Board (80%) */}
-      <div className="w-[80%] h-full shrink-0">
+    <div className="flex w-full h-screen overflow-hidden relative">
+      {/* Game Board — always fills available space */}
+      <div className="flex-1 min-w-0 h-full">
         <GameBoard
           gameState={gameState}
           onBid={(value) => humanAction({ action: 'bid', value, reasoning: 'User bid' })}
@@ -172,10 +174,35 @@ export default function App() {
         />
       </div>
 
-      {/* Right: Chat Panel (20%) */}
-      <div className="w-[20%] h-full shrink-0">
+      {/* Chat Panel — sidebar on large screens, slide-out overlay on small */}
+      {/* Desktop: always visible */}
+      <div className="hidden lg:block w-80 h-full shrink-0">
         <ChatPanel messages={chatMessages} logs={logs} />
       </div>
+
+      {/* Mobile/tablet: overlay toggle button */}
+      <button
+        onClick={toggleChat}
+        className="lg:hidden fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full bg-gray-900 border border-gray-600 text-white flex items-center justify-center shadow-xl hover:bg-gray-800 transition-colors"
+        aria-label="Toggle Chat Panel"
+      >
+        {chatOpen ? '✕' : '💬'}
+      </button>
+
+      {/* Mobile/tablet: slide-out chat overlay */}
+      {chatOpen && (
+        <div className="lg:hidden fixed inset-y-0 right-0 w-80 max-w-[85vw] z-40 shadow-2xl">
+          <ChatPanel messages={chatMessages} logs={logs} />
+        </div>
+      )}
+
+      {/* Backdrop for overlay */}
+      {chatOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/40 z-30"
+          onClick={toggleChat}
+        />
+      )}
     </div>
   );
 }
