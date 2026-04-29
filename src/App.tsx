@@ -11,9 +11,10 @@ import { SplashScreen } from './components/SplashScreen';
 import { ChatPanel, ChatMessage } from './components/ChatPanel';
 import { Dashboard } from './components/Dashboard';
 import { ModelDetail } from './components/ModelDetail';
+import { Tournament } from './components/Tournament';
 import { GameConfig } from './engine/types';
 
-type Screen = 'splash' | 'setup' | 'game' | 'dashboard' | 'model_detail';
+type Screen = 'splash' | 'setup' | 'game' | 'dashboard' | 'model_detail' | 'tournament';
 
 export default function App() {
   const { gameState, logs, isHumanTurn, isPaused, initGame, humanAction, togglePause, quitGame } = useGame();
@@ -138,12 +139,18 @@ export default function App() {
     );
   }
 
+  // Tournament wireframe
+  if (screen === 'tournament') {
+    return <Tournament onBack={() => setScreen('setup')} />;
+  }
+
   // Setup / menu screen
   if (screen === 'setup') {
     return (
       <GameSetup
         onStart={handleStart}
         onLeaderboard={() => setScreen('dashboard')}
+        onTournament={() => setScreen('tournament')}
       />
     );
   }

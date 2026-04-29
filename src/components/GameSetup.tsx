@@ -7,6 +7,7 @@ import { Settings as SettingsIcon } from 'lucide-react';
 interface GameSetupProps {
   onStart: (config: GameConfig) => void;
   onLeaderboard?: () => void;
+  onTournament?: () => void;
 }
 
 const OPENROUTER_MODELS = [
@@ -22,7 +23,7 @@ const OPENROUTER_MODELS = [
   { id: 'microsoft/phi-3-medium-128k-instruct', name: 'Phi-3 Medium' },
 ];
 
-export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard }) => {
+export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, onTournament }) => {
   const [variant, setVariant] = useState<'standard' | 'jokers'>('standard');
   const [targetScore, setTargetScore] = useState<number>(500);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -285,6 +286,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard }) 
               className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
             >
               🏆 Leaderboard
+            </button>
+          )}
+          {onTournament && (
+            <button
+              onClick={onTournament}
+              className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
+            >
+              ♠ Tournament
             </button>
           )}
         </div>
