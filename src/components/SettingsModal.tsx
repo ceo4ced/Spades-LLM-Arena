@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Settings as SettingsIcon, Key, Timer, Tv, Eye } from 'lucide-react';
+import { X, Settings as SettingsIcon, Key, Timer, Eye } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,7 +11,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const [gameSpeed, setGameSpeed] = useState(500);
   const [cardDelay, setCardDelay] = useState(800);
   const [trickDelay, setTrickDelay] = useState(2000);
-  const [youtubeStreamKey, setYoutubeStreamKey] = useState('');
   const [showCards, setShowCards] = useState([true, false, false, false]); // per seat
 
   useEffect(() => {
@@ -19,7 +18,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
       setGameSpeed(parseInt(localStorage.getItem('spades_game_speed') || '500'));
       setCardDelay(parseInt(localStorage.getItem('spades_card_delay') || '800'));
       setTrickDelay(parseInt(localStorage.getItem('spades_trick_delay') || '2000'));
-      setYoutubeStreamKey(localStorage.getItem('spades_youtube_key') || '');
       setShowCards([
         localStorage.getItem('spades_show_cards_0') !== 'false',
         localStorage.getItem('spades_show_cards_1') === 'true',
@@ -29,11 +27,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     }
   }, [isOpen]);
 
-  // Show which provider keys Vite found in .env.local at build time. Only the
-  // presence is shown — the values are never rendered, even though they are
-  // bundled into the JS at build time.
+  // LLM-provider keys live in .env.local. The detection panel below shows
+  // which ones Vite found at build time, but never the values themselves.
+  // Gemini is omitted from this view per request — it's still loaded by
+  // LLMAgent from process.env.GEMINI_API_KEY just like the others.
   const detectedKeys = {
-    Gemini: !!process.env.GEMINI_API_KEY,
     Anthropic: !!process.env.ANTHROPIC_API_KEY,
     OpenAI: !!process.env.OPENAI_API_KEY,
     OpenRouter: !!process.env.OPENROUTER_API_KEY,
@@ -43,7 +41,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     localStorage.setItem('spades_game_speed', gameSpeed.toString());
     localStorage.setItem('spades_card_delay', cardDelay.toString());
     localStorage.setItem('spades_trick_delay', trickDelay.toString());
-    localStorage.setItem('spades_youtube_key', youtubeStreamKey);
     showCards.forEach((val, i) => localStorage.setItem(`spades_show_cards_${i}`, val.toString()));
     onClose();
   };
@@ -166,29 +163,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     />
                     <span className="text-sm font-mono w-16 text-right">{gameSpeed}ms</span>
                   </div>
-                </div>
-              </div>
-
-              {/* ─── YouTube Streaming ─── */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                  <Tv className="w-4 h-4" />
-                  YouTube Streaming
-                </h3>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    YouTube Stream Key
-                  </label>
-                  <input
-                    type="password"
-                    value={youtubeStreamKey}
-                    onChange={(e) => setYoutubeStreamKey(e.target.value)}
-                    placeholder="xxxx-xxxx-xxxx-xxxx-xxxx"
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-mono"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Used by <code className="bg-gray-100 px-1 rounded">npm run stream:live</code> to broadcast to YouTube.
-                  </p>
                 </div>
               </div>
 
