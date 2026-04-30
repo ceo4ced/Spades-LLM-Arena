@@ -6,6 +6,8 @@ import { RandomAgent } from '../agents/random_agent';
 import { HeuristicAgent } from '../agents/heuristic_agent';
 import { LLMAgent } from '../agents/llm_agent';
 import { OpenRouterAgent } from '../agents/openrouter_agent';
+import { AnthropicAgent } from '../agents/anthropic_agent';
+import { OpenAIAgent } from '../agents/openai_agent';
 import { saveResult } from '../engine/resultsStore';
 
 export function useGame() {
@@ -218,6 +220,18 @@ export function useGame() {
             return new RandomAgent(name);
           }
           return new OpenRouterAgent(name, config.openrouter_api_key, player.openrouter_model);
+        case 'anthropic':
+          if (!config.anthropic_api_key) {
+            addLog(`Error: Anthropic API Key missing for ${name}. Defaulting to Random.`);
+            return new RandomAgent(name);
+          }
+          return new AnthropicAgent(name, config.anthropic_api_key, player.anthropic_model);
+        case 'openai':
+          if (!config.openai_api_key) {
+            addLog(`Error: OpenAI API Key missing for ${name}. Defaulting to Random.`);
+            return new RandomAgent(name);
+          }
+          return new OpenAIAgent(name, config.openai_api_key, player.openai_model);
         default: return new RandomAgent(name);
       }
     });
@@ -227,6 +241,8 @@ export function useGame() {
     const getModelLabel = (p: GameConfig['players'][0]) => {
       if (p.type === 'human') return 'Human';
       if (p.model === 'openrouter' && p.openrouter_model) return p.openrouter_model.split('/').pop() || p.openrouter_model;
+      if (p.model === 'anthropic' && p.anthropic_model) return p.anthropic_model;
+      if (p.model === 'openai' && p.openai_model) return p.openai_model;
       return p.model;
     };
     modelConfigRef.current = {

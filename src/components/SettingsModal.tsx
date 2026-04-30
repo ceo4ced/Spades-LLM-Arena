@@ -9,6 +9,8 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [openRouterKey, setOpenRouterKey] = useState('');
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [openaiKey, setOpenaiKey] = useState('');
   const [gameSpeed, setGameSpeed] = useState(500);
   const [cardDelay, setCardDelay] = useState(800);
   const [trickDelay, setTrickDelay] = useState(2000);
@@ -18,6 +20,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   useEffect(() => {
     if (isOpen) {
       setOpenRouterKey(localStorage.getItem('spades_openrouter_key') || '');
+      setAnthropicKey(localStorage.getItem('spades_anthropic_key') || '');
+      setOpenaiKey(localStorage.getItem('spades_openai_key') || '');
       setGameSpeed(parseInt(localStorage.getItem('spades_game_speed') || '500'));
       setCardDelay(parseInt(localStorage.getItem('spades_card_delay') || '800'));
       setTrickDelay(parseInt(localStorage.getItem('spades_trick_delay') || '2000'));
@@ -33,6 +37,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   const handleSave = () => {
     localStorage.setItem('spades_openrouter_key', openRouterKey);
+    localStorage.setItem('spades_anthropic_key', anthropicKey);
+    localStorage.setItem('spades_openai_key', openaiKey);
     localStorage.setItem('spades_game_speed', gameSpeed.toString());
     localStorage.setItem('spades_card_delay', cardDelay.toString());
     localStorage.setItem('spades_trick_delay', trickDelay.toString());
@@ -191,6 +197,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   <Key className="w-4 h-4" />
                   API Keys
                 </h3>
+                <p className="text-xs text-gray-500 -mt-1">
+                  All keys are stored locally in your browser only. Set the providers
+                  you want to play with — leave the rest blank.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Anthropic API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={anthropicKey}
+                    onChange={(e) => setAnthropicKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    For direct Claude (Opus 4.7, Sonnet 4.6, Haiku 4.5).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    OpenAI API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={openaiKey}
+                    onChange={(e) => setOpenaiKey(e.target.value)}
+                    placeholder="sk-..."
+                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    For direct GPT-4o / GPT-4o Mini.
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     OpenRouter API Key
@@ -203,9 +246,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Required for GPT-4, Claude, Llama models. Stored locally in your browser.
+                    Single gateway to many models (Llama, Mistral, DeepSeek, Qwen, etc.).
                   </p>
                 </div>
+
+                <p className="text-xs text-gray-400 pt-1">
+                  Gemini key is set via <code className="bg-gray-100 px-1 rounded">.env.local</code> (server-side, not here).
+                </p>
               </div>
             </div>
 
