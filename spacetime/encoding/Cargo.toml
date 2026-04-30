@@ -1,0 +1,12 @@
+[package]
+name = "encoding"
+version = "0.1.0"
+edition = "2021"
+description = "Pure bit-packed encoding for the Spades LLM Arena. No I/O, no dependencies — testable in isolation."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
