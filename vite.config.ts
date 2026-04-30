@@ -12,6 +12,12 @@ export default defineConfig(({mode}) => {
       'process.env.ANTHROPIC_API_KEY': JSON.stringify(env.ANTHROPIC_API_KEY),
       'process.env.OPENAI_API_KEY': JSON.stringify(env.OPENAI_API_KEY),
       'process.env.OPENROUTER_API_KEY': JSON.stringify(env.OPENROUTER_API_KEY),
+      // YouTube is read server-side by stream/orchestrator.ts. We expose only
+      // a presence flag to the browser so the settings panel can show
+      // Detected/Missing — the actual key never enters the JS bundle.
+      'process.env.YOUTUBE_STREAM_KEY_PRESENT': JSON.stringify(
+        env.YOUTUBE_STREAM_KEY ? '1' : '',
+      ),
     },
     resolve: {
       alias: {
