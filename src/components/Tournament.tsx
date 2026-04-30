@@ -1,34 +1,26 @@
 /**
- * Tournament — wireframe for a multi-stage Spades LLM tournament that culminates
- * in a 2v2 championship match ("The Reckoning").
+ * Tournament — wireframe for a multi-stage Spades LLM tournament culminating
+ * in a 2v2 championship final.
  *
- * Aesthetic: occult tournament ledger — ink, aged gold, bone parchment, ceremonial
- * capitals (Cinzel) with literary serif body (Cormorant Garamond) and JetBrains
- * Mono for tabular data.
+ * Visual language matches the rest of the app:
+ *   • Outer: dark gray→green gradient (same as GameSetup)
+ *   • Top nav: dark navy bar (same as Dashboard)
+ *   • Content: bright white/frosted cards with gray text and green accents
+ *   • Type: system sans default + `font-mono` for tabular data
+ *   • Scroll: `h-screen flex flex-col` + `overflow-y-auto subtle-scroll`
+ *     (the established pattern, since index.css forces body overflow hidden)
  *
  * Stages:
- *   1. QUALIFIERS — 16 individual contenders accumulate scores across rotating
- *      4-player matches (round-robin-ish ladder).
- *   2. KNOCKOUT   — top 8 advance into elimination tables (4 LLMs per table,
- *      top 1 advances). 8 → 4.
- *   3. THE RECKONING — the 4 finalists are paired into two teams (1+4, 2+3 by
- *      seeding) and play the championship 2v2 match in the native engine.
+ *   I.  Qualifiers — 16 contenders compete in rotating 4-player matches.
+ *       Top 8 by record advance.
+ *   II. Knockout   — Four 4-player tables. Top scorer at each table advances.
+ *   III. The Final — The four survivors are paired into two teams (1+4 vs 2+3
+ *        by seed) for the engine's native 2v2 championship match.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-
-// ── Self-contained font + base styles ──────────────────────────────────────
-const FONT_HREF =
-  'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500&family=JetBrains+Mono:wght@300;400;500;600&display=swap';
-
-if (typeof document !== 'undefined' && !document.querySelector(`link[data-tournament-fonts]`)) {
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = FONT_HREF;
-  link.setAttribute('data-tournament-fonts', 'true');
-  document.head.appendChild(link);
-}
+import { ChevronLeft, Trophy, Flame, Clock, Eye, Crown } from 'lucide-react';
 
 // ── Mock tournament data ───────────────────────────────────────────────────
 type Contender = {
@@ -63,7 +55,6 @@ const CONTENDERS: Contender[] = [
   { id: 'rnd', name: 'House Heuristic', short: 'HEU', house: 'Arena', seed: 16, wins: 2, losses: 10, bagsRate: 0.44, nilCalls: 0, status: 'eliminated' },
 ];
 
-// Knockout bracket: 8 → 4. Each match has 4 players, top 1 advances.
 type Match = { id: string; round: 'r8' | 'r4'; players: string[]; winner?: string };
 
 const KNOCKOUT: Match[] = [
@@ -73,716 +64,641 @@ const KNOCKOUT: Match[] = [
   { id: 'qf-d', round: 'r8', players: ['l4m', 'qwen3', 'mistr', 'dsr2'], winner: 'l4m' },
 ];
 
-// Seed-based pairing for the 2v2 finale: 1+4 vs 2+3.
-const TEAM_NORTH = ['opus47', 'l4m']; // seeds 1 + 4
-const TEAM_SOUTH = ['gpt5', 'gem3'];   // seeds 2 + 3
+// Seed-based pairing for the 2v2 finale: 1+4 vs 2+3 (balanced snake).
+const TEAM_NORTH = ['opus47', 'l4m'];
+const TEAM_SOUTH = ['gpt5', 'gem3'];
 
-// ── Helpers ────────────────────────────────────────────────────────────────
 const lookup = (id: string) => CONTENDERS.find((c) => c.id === id)!;
 
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-const Ornament: React.FC<{ className?: string; style?: React.CSSProperties }> = ({
-  className = '',
-  style,
-}) => (
-  <svg viewBox="0 0 240 12" className={className} style={style} fill="none" preserveAspectRatio="none">
-    <path d="M0 6 L100 6" stroke="currentColor" strokeWidth="0.6" />
-    <path d="M140 6 L240 6" stroke="currentColor" strokeWidth="0.6" />
-    <path
-      d="M100 6 Q108 1 115 6 Q120 11 125 6 Q132 1 140 6"
-      stroke="currentColor"
-      strokeWidth="0.8"
-      fill="none"
-    />
-    <circle cx="120" cy="6" r="1.5" fill="currentColor" />
-  </svg>
-);
-
-const SpadeGlyph: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = '' }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} className={className} fill="currentColor">
-    <path d="M12 2 C 7 8, 3 11, 3 15 C 3 18, 5 20, 8 20 C 9.5 20, 10.8 19.3, 11.4 18.4 L 10 22 L 14 22 L 12.6 18.4 C 13.2 19.3, 14.5 20, 16 20 C 19 20, 21 18, 21 15 C 21 11, 17 8, 12 2 Z" />
-  </svg>
-);
-
-const NoiseLayer: React.FC = () => (
-  <svg className="pointer-events-none fixed inset-0 z-0 opacity-[0.06] mix-blend-overlay" aria-hidden="true">
-    <filter id="tournament-noise">
-      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" />
-      <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.5 0" />
-    </filter>
-    <rect width="100%" height="100%" filter="url(#tournament-noise)" />
-  </svg>
-);
-
-const VignetteFrame: React.FC<{ children: React.ReactNode; goldBorder?: boolean }> = ({
-  children,
-  goldBorder = false,
-}) => (
-  <div
-    className="relative"
-    style={{
-      boxShadow: goldBorder
-        ? 'inset 0 0 0 1px rgba(201,169,106,0.55), inset 0 0 0 4px rgba(10,9,8,0.9), inset 0 0 0 5px rgba(201,169,106,0.25)'
-        : 'inset 0 0 0 1px rgba(232,226,213,0.12)',
-    }}
-  >
-    {children}
-  </div>
-);
-
-// Bracket card showing a single LLM contender.
-const ContenderCard: React.FC<{
-  c: Contender;
-  size?: 'sm' | 'md' | 'lg';
-  isWinner?: boolean;
-}> = ({ c, size = 'md', isWinner = false }) => {
-  const heights = { sm: 'py-2 px-3', md: 'py-3 px-4', lg: 'py-4 px-5' };
-  const fontSize = { sm: 'text-[11px]', md: 'text-xs', lg: 'text-sm' };
-
-  return (
-    <div
-      className={`relative ${heights[size]} ${
-        isWinner ? 'bg-[#1a1611]' : 'bg-[#0f0d0a]'
-      } transition-colors`}
-      style={{
-        boxShadow: isWinner
-          ? 'inset 0 0 0 1px rgba(201,169,106,0.7), 0 0 24px rgba(201,169,106,0.15)'
-          : c.status === 'eliminated'
-          ? 'inset 0 0 0 1px rgba(94,20,20,0.4)'
-          : 'inset 0 0 0 1px rgba(232,226,213,0.18)',
-      }}
-    >
-      {isWinner && (
-        <div
-          className="absolute -top-2 left-3 px-1.5 text-[9px] tracking-[0.3em]"
-          style={{ background: '#0a0908', color: '#c9a96a', fontFamily: 'Cinzel, serif' }}
-        >
-          ADVANCES
-        </div>
-      )}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span
-            className="shrink-0 w-7 h-7 grid place-items-center text-[10px]"
-            style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              border: '1px solid rgba(201,169,106,0.5)',
-              color: '#c9a96a',
-            }}
-          >
-            {String(c.seed).padStart(2, '0')}
-          </span>
-          <div className="min-w-0">
-            <div
-              className={`truncate ${fontSize[size]} tracking-wide`}
-              style={{
-                fontFamily: 'Cinzel, serif',
-                color: c.status === 'eliminated' ? '#7a6f5e' : '#e8e2d5',
-                textDecoration: c.status === 'eliminated' && !isWinner ? 'line-through' : 'none',
-                textDecorationColor: 'rgba(94,20,20,0.6)',
-              }}
-            >
-              {c.name}
-            </div>
-            <div
-              className="text-[10px] italic truncate"
-              style={{ fontFamily: 'Cormorant Garamond, serif', color: '#7a6f5e' }}
-            >
-              {c.house}
-            </div>
-          </div>
-        </div>
-        <div
-          className="text-[10px] tabular-nums"
-          style={{ fontFamily: 'JetBrains Mono, monospace', color: '#c9a96a' }}
-        >
-          {c.wins}–{c.losses}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ── Main wireframe ────────────────────────────────────────────────────────
+// ── Main component ────────────────────────────────────────────────────────
 
 interface TournamentProps {
   onBack?: () => void;
+  onPlay?: () => void;
 }
 
-export const Tournament: React.FC<TournamentProps> = ({ onBack }) => {
-  const [stage, setStage] = useState<'qualifiers' | 'knockout' | 'reckoning'>('reckoning');
-  const [tick, setTick] = useState(0);
+type Stage = 'qualifiers' | 'knockout' | 'final';
 
-  // gentle pulse for "LIVE" indicator
-  useEffect(() => {
-    const i = setInterval(() => setTick((t) => t + 1), 1100);
-    return () => clearInterval(i);
-  }, []);
-
-  const finalists = useMemo(() => CONTENDERS.filter((c) => c.status === 'finalist'), []);
+export const Tournament: React.FC<TournamentProps> = ({ onBack, onPlay }) => {
+  const [stage, setStage] = useState<Stage>('final');
 
   return (
-    <div
-      className="relative min-h-screen w-full overflow-x-hidden"
-      style={{
-        background:
-          'radial-gradient(ellipse at top, #14110d 0%, #0a0908 55%, #050403 100%)',
-        color: '#e8e2d5',
-        fontFamily: 'Cormorant Garamond, serif',
-      }}
-    >
-      <NoiseLayer />
-
-      {/* ─── Masthead ──────────────────────────────────────── */}
-      <header className="relative z-10 px-12 pt-10 pb-6">
-        <div className="flex items-start justify-between gap-8">
-          <div className="flex items-center gap-3 text-[10px] tracking-[0.4em]" style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}>
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="hover:text-[#c9a96a] transition-colors"
-                style={{ letterSpacing: '0.3em' }}
-              >
-                ← LEDGER
-              </button>
-            )}
-            <span>·</span>
-            <span>EST. 2025</span>
-          </div>
-          <div className="flex items-center gap-3" style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace', fontSize: 10, letterSpacing: '0.3em' }}>
-            <span className="flex items-center gap-2">
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{
-                  background: '#1a5f3f',
-                  boxShadow: tick % 2 === 0 ? '0 0 12px #1a5f3f' : '0 0 4px #1a5f3f',
-                  transition: 'box-shadow 0.4s',
-                }}
-              />
-              LIVE · 24,108 WATCHING
-            </span>
-            <span>·</span>
-            <span>RINK 03</span>
-          </div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-12 text-center"
+    <div className="h-screen flex flex-col bg-gradient-to-br from-gray-900 via-green-950 to-gray-900 overflow-hidden">
+      {/* ── Top nav (matches Dashboard) ─────────────────── */}
+      <nav className="flex items-center justify-between px-6 py-3 bg-[#0a1219] border-b border-white/10 shrink-0 z-20">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
-          <div
-            className="text-[10px] tracking-[0.7em]"
-            style={{ color: '#c9a96a', fontFamily: 'Cinzel, serif' }}
-          >
-            T H E · S P A D E S · A R E N A
-          </div>
-          <Ornament className="w-72 h-3 mx-auto my-5" style={{ color: '#c9a96a' }} />
-          <h1
-            className="text-7xl md:text-8xl leading-[0.95]"
-            style={{
-              fontFamily: 'Cinzel, serif',
-              fontWeight: 900,
-              color: '#e8e2d5',
-              letterSpacing: '0.02em',
-              textShadow: '0 0 40px rgba(201,169,106,0.15)',
-            }}
-          >
-            THE RECKONING
-          </h1>
-          <div
-            className="mt-3 italic text-lg"
-            style={{ color: '#a89880', fontFamily: 'Cormorant Garamond, serif' }}
-          >
-            Tournament <span style={{ fontFamily: 'Cinzel, serif', fontStyle: 'normal' }}>XII</span> · sixteen contenders, one crown, two thrones at the end.
-          </div>
-          <div
-            className="mt-2 text-[10px] tracking-[0.4em]"
-            style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}
-          >
-            17 — 24 MARCH · MMXXVI
-          </div>
-        </motion.div>
-
-        {/* Stage navigation */}
-        <nav className="mt-10 flex items-center justify-center gap-0">
-          {(['qualifiers', 'knockout', 'reckoning'] as const).map((s, i) => {
-            const labels = {
-              qualifiers: ['I', 'QUALIFIERS', '16 contenders'],
-              knockout: ['II', 'KNOCKOUT', '8 → 4'],
-              reckoning: ['III', 'THE RECKONING', '2v2 final'],
-            } as const;
-            const [num, title, sub] = labels[s];
-            const active = stage === s;
-            return (
-              <React.Fragment key={s}>
-                {i > 0 && (
-                  <div
-                    className="w-12 h-px shrink-0"
-                    style={{ background: 'linear-gradient(90deg, transparent, rgba(201,169,106,0.4), transparent)' }}
-                  />
-                )}
-                <button
-                  onClick={() => setStage(s)}
-                  className="px-6 py-3 text-center transition-all"
-                  style={{
-                    color: active ? '#c9a96a' : '#7a6f5e',
-                    borderTop: active ? '1px solid rgba(201,169,106,0.5)' : '1px solid transparent',
-                    borderBottom: active ? '1px solid rgba(201,169,106,0.5)' : '1px solid transparent',
-                  }}
-                >
-                  <div className="text-[10px] tracking-[0.3em] mb-1" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-                    STAGE {num}
-                  </div>
-                  <div className="text-base tracking-[0.3em]" style={{ fontFamily: 'Cinzel, serif', fontWeight: 600 }}>
-                    {title}
-                  </div>
-                  <div className="text-[11px] italic mt-0.5" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#7a6f5e' }}>
-                    {sub}
-                  </div>
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </nav>
-      </header>
-
-      {/* ─── Body ──────────────────────────────────────────── */}
-      <main className="relative z-10 px-12 pb-24 mt-8">
-        <AnimatePresence mode="wait">
-          {stage === 'qualifiers' && (
-            <motion.section
-              key="q"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.5 }}
+          <ChevronLeft className="w-5 h-5 text-gray-400" />
+          <span className="text-2xl">♠</span>
+          <span className="text-lg font-bold tracking-tight text-white">
+            Spades <span className="text-green-400">LLM Arena</span>
+          </span>
+        </button>
+        <div className="flex gap-1">
+          {onPlay && (
+            <button
+              onClick={onPlay}
+              className="px-4 py-1.5 text-sm rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-white/10"
             >
-              <QualifiersStage />
-            </motion.section>
+              Play
+            </button>
           )}
-          {stage === 'knockout' && (
-            <motion.section
-              key="k"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.5 }}
-            >
-              <KnockoutStage />
-            </motion.section>
-          )}
-          {stage === 'reckoning' && (
-            <motion.section
-              key="r"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.5 }}
-            >
-              <ReckoningStage finalists={finalists} pulse={tick % 2} />
-            </motion.section>
-          )}
-        </AnimatePresence>
-      </main>
-
-      {/* ─── Footer ledger ─────────────────────────────────── */}
-      <footer
-        className="relative z-10 border-t px-12 py-6 text-[10px] tracking-[0.3em] flex justify-between items-center"
-        style={{
-          borderColor: 'rgba(201,169,106,0.18)',
-          color: '#7a6f5e',
-          fontFamily: 'JetBrains Mono, monospace',
-        }}
-      >
-        <span>BROADCAST · YOUTUBE LIVE · 2560×1440 · 60FPS</span>
-        <span className="flex items-center gap-2">
-          <SpadeGlyph size={10} className="text-[#c9a96a]" />
-          ARENA · MMXXVI
-        </span>
-        <span>SEAL OF THE HOUSE · {String(tick % 1000).padStart(3, '0')}</span>
-      </footer>
-    </div>
-  );
-};
-
-// ── Stage: Qualifiers ─────────────────────────────────────────────────────
-
-const QualifiersStage: React.FC = () => {
-  return (
-    <div className="max-w-6xl mx-auto">
-      <SectionHeader
-        eyebrow="Stage I"
-        title="THE QUALIFIERS"
-        subtitle="Sixteen contenders rotate through the tables. The wheat is sifted from the chaff by record, by bag-rate, and by nerve."
-      />
-      <div className="mt-10 grid grid-cols-12 gap-6">
-        {/* ledger table */}
-        <div className="col-span-8">
-          <VignetteFrame>
-            <table className="w-full" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>
-              <thead>
-                <tr style={{ color: '#c9a96a' }} className="text-left">
-                  {['SEED', 'CONTENDER', 'HOUSE', 'W', 'L', 'BAG%', 'NIL', ''].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-[10px] tracking-[0.25em] font-normal"
-                      style={{ borderBottom: '1px solid rgba(201,169,106,0.3)' }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {CONTENDERS.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="transition-colors hover:bg-[#1a1611]"
-                    style={{ borderBottom: '1px solid rgba(232,226,213,0.05)' }}
-                  >
-                    <td className="px-4 py-2.5" style={{ color: '#c9a96a' }}>
-                      {String(c.seed).padStart(2, '0')}
-                    </td>
-                    <td
-                      className="px-4 py-2.5 tracking-wide"
-                      style={{
-                        fontFamily: 'Cinzel, serif',
-                        color: c.status === 'finalist' ? '#e8e2d5' : c.status === 'eliminated' ? '#7a6f5e' : '#a89880',
-                      }}
-                    >
-                      {c.name}
-                    </td>
-                    <td className="px-4 py-2.5 italic" style={{ fontFamily: 'Cormorant Garamond, serif', color: '#a89880' }}>
-                      {c.house}
-                    </td>
-                    <td className="px-4 py-2.5">{c.wins}</td>
-                    <td className="px-4 py-2.5" style={{ color: '#7a6f5e' }}>{c.losses}</td>
-                    <td className="px-4 py-2.5">{(c.bagsRate * 100).toFixed(0)}</td>
-                    <td className="px-4 py-2.5">{c.nilCalls}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <StatusPip status={c.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </VignetteFrame>
+          <button
+            onClick={onBack}
+            className="px-4 py-1.5 text-sm rounded-lg transition-colors text-gray-400 hover:text-white hover:bg-white/10"
+          >
+            Leaderboard
+          </button>
+          <button className="px-4 py-1.5 text-sm rounded-lg transition-colors bg-white/10 text-white font-medium">
+            Tournament
+          </button>
         </div>
+      </nav>
 
-        {/* side panel */}
-        <aside className="col-span-4 space-y-5">
-          <SidePanel title="CUT LINE">
-            <p className="italic text-[15px] leading-relaxed" style={{ color: '#a89880' }}>
-              The top eight by W–L proceed to the Knockout. Ties broken by negative bag-rate, then by nil rate, then by lots cast at midnight.
-            </p>
-            <div
-              className="mt-4 pt-4 text-[11px] tracking-[0.25em]"
-              style={{ borderTop: '1px solid rgba(201,169,106,0.2)', fontFamily: 'JetBrains Mono, monospace', color: '#c9a96a' }}
-            >
-              CUT AT SEED 08 — DEEPSEEK R2
-            </div>
-          </SidePanel>
+      {/* ── Scrollable body ──────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto subtle-scroll">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6 pb-12">
+          {/* Hero card */}
+          <HeroCard />
 
-          <SidePanel title="WAGERS LAID">
-            <div className="space-y-3" style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}>
-              {[
-                ['OPUS to crown', '2.4 : 1'],
-                ['GPT-5 to crown', '3.1 : 1'],
-                ['GEM3 to crown', '3.8 : 1'],
-                ['Underdog (any)', '11 : 1'],
-              ].map(([label, odds]) => (
-                <div key={label} className="flex justify-between items-baseline">
-                  <span style={{ color: '#a89880' }}>{label}</span>
-                  <span style={{ color: '#c9a96a' }}>{odds}</span>
-                </div>
-              ))}
-            </div>
-          </SidePanel>
-        </aside>
+          {/* Stage selector */}
+          <StageTabs stage={stage} onChange={setStage} />
+
+          {/* Stage content */}
+          <AnimatePresence mode="wait">
+            {stage === 'qualifiers' && (
+              <motion.div
+                key="q"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35 }}
+              >
+                <QualifiersStage />
+              </motion.div>
+            )}
+            {stage === 'knockout' && (
+              <motion.div
+                key="k"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35 }}
+              >
+                <KnockoutStage onAdvance={() => setStage('final')} />
+              </motion.div>
+            )}
+            {stage === 'final' && (
+              <motion.div
+                key="f"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35 }}
+              >
+                <FinalStage />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
 };
 
-// ── Stage: Knockout ───────────────────────────────────────────────────────
+// ── Hero card ─────────────────────────────────────────────────────────────
 
-const KnockoutStage: React.FC = () => {
+const HeroCard: React.FC = () => (
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="relative bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden"
+  >
+    {/* Decorative ♠ glyphs in the background */}
+    <div className="absolute -top-12 -right-8 text-[220px] font-serif text-gray-100 select-none leading-none pointer-events-none">
+      ♠
+    </div>
+    <div className="absolute -bottom-16 left-12 text-[140px] font-serif text-green-50 select-none leading-none pointer-events-none">
+      ♠
+    </div>
+
+    <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div>
+        <div className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-green-700 mb-2">
+          <Trophy className="w-4 h-4" />
+          Tournament XII
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight">
+          The Championship Bracket
+        </h1>
+        <p className="mt-2 text-gray-500 max-w-2xl">
+          Sixteen large language models compete across three stages. The four survivors
+          pair into two teams for a championship 2v2 match.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+        <Pill icon={<Flame className="w-3.5 h-3.5" />} label="LIVE" tone="green" pulse />
+        <Pill icon={<Eye className="w-3.5 h-3.5" />} label="24,108 watching" tone="gray" />
+        <Pill icon={<Clock className="w-3.5 h-3.5" />} label="Day 7 of 7" tone="gray" />
+      </div>
+    </div>
+
+    {/* Top progress strip */}
+    <div className="relative px-6 sm:px-8 pb-5 grid grid-cols-3 gap-3 text-xs">
+      <ProgressStat label="Contenders" value="16" sub="started" />
+      <ProgressStat label="Active" value="4" sub="finalists" tone="green" />
+      <ProgressStat label="Champion" value="—" sub="to be crowned" tone="amber" />
+    </div>
+  </motion.div>
+);
+
+const Pill: React.FC<{
+  icon?: React.ReactNode;
+  label: string;
+  tone?: 'green' | 'gray' | 'amber' | 'red';
+  pulse?: boolean;
+}> = ({ icon, label, tone = 'gray', pulse }) => {
+  const toneStyles = {
+    green: 'bg-green-50 text-green-700 border-green-200',
+    gray: 'bg-gray-50 text-gray-600 border-gray-200',
+    amber: 'bg-amber-50 text-amber-700 border-amber-200',
+    red: 'bg-red-50 text-red-600 border-red-200',
+  } as const;
   return (
-    <div className="max-w-7xl mx-auto">
-      <SectionHeader
-        eyebrow="Stage II"
-        title="THE KNOCKOUT"
-        subtitle="Four tables of four. From each, only the highest score draws breath. The remaining twelve depart in silence."
-      />
+    <span
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${toneStyles[tone]}`}
+    >
+      {pulse && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+      {icon}
+      {label}
+    </span>
+  );
+};
 
-      <div className="mt-12 grid grid-cols-12 gap-8 items-start">
-        {/* Quarterfinals — 4 tables */}
-        <div className="col-span-7 space-y-6">
-          <ColumnHeader number="01" label="QUARTERFINAL TABLES" />
-          <div className="grid grid-cols-2 gap-5">
-            {KNOCKOUT.filter((m) => m.round === 'r8').map((match, idx) => (
-              <BracketTable key={match.id} match={match} index={idx} />
-            ))}
-          </div>
-        </div>
+const ProgressStat: React.FC<{
+  label: string;
+  value: string;
+  sub: string;
+  tone?: 'gray' | 'green' | 'amber';
+}> = ({ label, value, sub, tone = 'gray' }) => {
+  const toneText = {
+    gray: 'text-gray-800',
+    green: 'text-green-700',
+    amber: 'text-amber-600',
+  } as const;
+  return (
+    <div className="flex items-baseline gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
+      <span className="text-[10px] font-semibold tracking-widest uppercase text-gray-400 shrink-0">
+        {label}
+      </span>
+      <span className={`text-lg font-black font-mono ${toneText[tone]}`}>{value}</span>
+      <span className="text-xs text-gray-400 truncate">{sub}</span>
+    </div>
+  );
+};
 
-        {/* Bridge — bracket curves */}
-        <div className="col-span-1 relative h-[480px] hidden lg:block">
-          <svg viewBox="0 0 60 480" className="w-full h-full" preserveAspectRatio="none">
-            {[80, 200, 320, 440].map((y, i) => (
-              <path
-                key={i}
-                d={`M0 ${y} Q 30 ${y}, 30 ${i < 2 ? 200 : 320} L 60 ${i < 2 ? 200 : 320}`}
-                stroke="rgba(201,169,106,0.4)"
-                strokeWidth="1"
-                fill="none"
-              />
-            ))}
-          </svg>
-        </div>
+// ── Stage tabs ────────────────────────────────────────────────────────────
 
-        {/* Semifinal advancers — the 4 finalists */}
-        <div className="col-span-4 space-y-6">
-          <ColumnHeader number="02" label="THE FINAL FOUR" />
-          <VignetteFrame goldBorder>
-            <div className="p-5 space-y-3">
-              <div
-                className="text-[10px] tracking-[0.4em] mb-3 italic"
-                style={{ color: '#7a6f5e', fontFamily: 'Cormorant Garamond, serif' }}
-              >
-                — paired by seed for the championship —
-              </div>
-              {CONTENDERS.filter((c) => c.status === 'finalist')
-                .sort((a, b) => a.seed - b.seed)
-                .map((c) => (
-                  <ContenderCard key={c.id} c={c} size="md" isWinner />
-                ))}
-              <div
-                className="mt-4 pt-4 text-center"
-                style={{ borderTop: '1px solid rgba(201,169,106,0.25)' }}
-              >
-                <SpadeGlyph size={28} className="text-[#c9a96a] mx-auto" />
-                <div
-                  className="mt-2 text-[10px] tracking-[0.4em]"
-                  style={{ color: '#c9a96a', fontFamily: 'Cinzel, serif' }}
-                >
-                  TO THE RECKONING
-                </div>
+const StageTabs: React.FC<{ stage: Stage; onChange: (s: Stage) => void }> = ({ stage, onChange }) => {
+  const tabs: { id: Stage; num: string; title: string; sub: string }[] = [
+    { id: 'qualifiers', num: 'I', title: 'Qualifiers', sub: '16 contenders' },
+    { id: 'knockout', num: 'II', title: 'Knockout', sub: '8 → 4' },
+    { id: 'final', num: 'III', title: 'The Final', sub: '2v2 championship' },
+  ];
+
+  return (
+    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {tabs.map((t) => {
+        const active = stage === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+              active
+                ? 'bg-green-600 text-white shadow-md'
+                : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <span
+              className={`shrink-0 w-9 h-9 rounded-lg grid place-items-center text-sm font-black font-mono ${
+                active ? 'bg-white/20 text-white' : 'bg-white text-gray-400 border border-gray-200'
+              }`}
+            >
+              {t.num}
+            </span>
+            <div>
+              <div className="font-bold text-sm">{t.title}</div>
+              <div className={`text-xs ${active ? 'text-green-50' : 'text-gray-500'}`}>
+                {t.sub}
               </div>
             </div>
-          </VignetteFrame>
+            {t.id === 'final' && !active && (
+              <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold tracking-wider uppercase bg-green-100 text-green-700 rounded">
+                <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                live
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── Stage I: Qualifiers ──────────────────────────────────────────────────
+
+const QualifiersStage: React.FC = () => {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Card className="lg:col-span-2 overflow-hidden p-0">
+        <SectionHead inset title="Qualifying Ladder" subtitle="Sixteen contenders, ranked by W–L. Top eight advance." />
+        <div className="overflow-x-auto subtle-scroll-dark">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500">
+              <tr className="text-left">
+                {['Seed', 'Contender', 'House', 'W', 'L', 'Bag %', 'Nil', 'Status'].map((h) => (
+                  <th key={h} className="px-4 py-3 text-[11px] font-bold tracking-wider uppercase">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {CONTENDERS.map((c, idx) => {
+                const cutLine = idx === 7;
+                return (
+                  <React.Fragment key={c.id}>
+                    <tr
+                      className={`border-t border-gray-100 hover:bg-gray-50 transition-colors ${
+                        c.status === 'finalist' ? 'bg-green-50/40' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-mono text-gray-500">
+                        {String(c.seed).padStart(2, '0')}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-gray-800">{c.name}</td>
+                      <td className="px-4 py-3 text-gray-500">{c.house}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-green-700">{c.wins}</td>
+                      <td className="px-4 py-3 font-mono text-gray-400">{c.losses}</td>
+                      <td className="px-4 py-3 font-mono text-gray-600">
+                        {(c.bagsRate * 100).toFixed(0)}%
+                      </td>
+                      <td className="px-4 py-3 font-mono text-gray-600">{c.nilCalls}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={c.status} />
+                      </td>
+                    </tr>
+                    {cutLine && (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-1.5 bg-gray-100">
+                          <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase text-gray-400">
+                            <div className="flex-1 h-px bg-gray-300" />
+                            <span>Cut Line · Top 8 Advance</span>
+                            <div className="flex-1 h-px bg-gray-300" />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+      </Card>
+
+      <div className="space-y-6">
+        <Card>
+          <SectionHead small title="How qualifying works" />
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Each contender plays a rotating schedule of 4-player matches across the week.
+            Records are pooled into a single ladder. Ties are broken by{' '}
+            <span className="font-semibold text-gray-800">bag rate</span> (lower is better),
+            then by <span className="font-semibold text-gray-800">successful nil bids</span>.
+          </p>
+          <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500 flex justify-between">
+            <span>Cut at seed 08</span>
+            <span className="font-mono text-gray-400">DeepSeek R2</span>
+          </div>
+        </Card>
+
+        <Card>
+          <SectionHead small title="Predicted finalists" />
+          <ul className="space-y-2.5">
+            {[
+              ['Claude Opus 4.7', '32%'],
+              ['GPT-5 Pro', '24%'],
+              ['Gemini 3 Ultra', '21%'],
+              ['Llama 4 Maverick', '11%'],
+            ].map(([name, odds]) => (
+              <li key={name} className="flex justify-between items-center text-sm">
+                <span className="text-gray-700">{name}</span>
+                <span className="font-mono font-bold text-green-700">{odds}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ── Stage II: Knockout ────────────────────────────────────────────────────
+
+const KnockoutStage: React.FC<{ onAdvance: () => void }> = ({ onAdvance }) => {
+  return (
+    <div className="space-y-6">
+      <Card>
+        <SectionHead
+          title="Knockout · Round of 8"
+          subtitle="Four tables of four. The highest scorer at each table is the only one who advances."
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {KNOCKOUT.map((m, i) => (
+            <BracketTable key={m.id} match={m} index={i} />
+          ))}
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <SectionHead
+            title="The Final Four"
+            subtitle="These four advance to the championship 2v2. Pairing rule below."
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {CONTENDERS.filter((c) => c.status === 'finalist')
+              .sort((a, b) => a.seed - b.seed)
+              .map((c) => (
+                <FinalistCard key={c.id} c={c} />
+              ))}
+          </div>
+          <button
+            onClick={onAdvance}
+            className="mt-5 w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all hover:scale-[0.99] flex items-center justify-center gap-2"
+          >
+            <Trophy className="w-4 h-4" />
+            Continue to The Final
+          </button>
+        </Card>
+
+        <Card>
+          <SectionHead small title="Pairing rule" />
+          <div className="space-y-3 text-sm text-gray-600">
+            <p>
+              By seeded snake: <span className="font-semibold text-gray-800">1 + 4</span> vs{' '}
+              <span className="font-semibold text-gray-800">2 + 3</span>. The highest seed is paired
+              with the lowest to balance the teams.
+            </p>
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+              <div className="p-3 rounded-lg bg-green-50 border border-green-200">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-green-700">
+                  Team North
+                </div>
+                <div className="mt-1 text-xs font-mono text-gray-700">seed 1 + seed 4</div>
+              </div>
+              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-blue-700">
+                  Team South
+                </div>
+                <div className="mt-1 text-xs font-mono text-gray-700">seed 2 + seed 3</div>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
 };
 
 const BracketTable: React.FC<{ match: Match; index: number }> = ({ match, index }) => {
-  const players = match.players.map(lookup);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08, duration: 0.5 }}
+      transition={{ delay: index * 0.05, duration: 0.35 }}
+      className="rounded-xl border border-gray-200 bg-white overflow-hidden"
     >
-      <VignetteFrame>
-        <div
-          className="px-4 py-2 flex justify-between items-center"
-          style={{
-            borderBottom: '1px solid rgba(201,169,106,0.2)',
-            background: 'rgba(201,169,106,0.04)',
-          }}
-        >
-          <span
-            className="text-[10px] tracking-[0.3em]"
-            style={{ color: '#c9a96a', fontFamily: 'Cinzel, serif' }}
-          >
-            TABLE {String.fromCharCode(65 + index)}
-          </span>
-          <span
-            className="text-[10px] tracking-[0.25em] italic"
-            style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}
-          >
-            CONCLUDED
-          </span>
-        </div>
-        <div className="divide-y" style={{ borderColor: 'rgba(232,226,213,0.05)' }}>
-          {players.map((p) => (
-            <ContenderCard key={p.id} c={p} size="sm" isWinner={p.id === match.winner} />
-          ))}
-        </div>
-      </VignetteFrame>
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+        <span className="text-xs font-bold tracking-widest uppercase text-gray-500">
+          Table {String.fromCharCode(65 + index)}
+        </span>
+        <span className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
+          Concluded
+        </span>
+      </div>
+      <ul className="divide-y divide-gray-100">
+        {match.players.map((pid) => {
+          const p = lookup(pid);
+          const won = pid === match.winner;
+          return (
+            <li
+              key={pid}
+              className={`flex items-center gap-2.5 px-3 py-2.5 ${
+                won ? 'bg-green-50' : ''
+              }`}
+            >
+              <span
+                className={`shrink-0 w-7 h-7 rounded-md grid place-items-center text-[11px] font-mono font-bold ${
+                  won
+                    ? 'bg-green-600 text-white'
+                    : 'bg-gray-100 text-gray-500 border border-gray-200'
+                }`}
+              >
+                {String(p.seed).padStart(2, '0')}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div
+                  className={`text-sm font-bold truncate ${
+                    won ? 'text-green-800' : p.status === 'eliminated' ? 'text-gray-500' : 'text-gray-700'
+                  }`}
+                >
+                  {p.name}
+                </div>
+                <div className="text-[11px] text-gray-400 truncate">{p.house}</div>
+              </div>
+              {won ? (
+                <Trophy className="w-4 h-4 text-green-600" />
+              ) : (
+                <span className="text-[10px] font-mono text-gray-400">{p.wins}–{p.losses}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </motion.div>
   );
 };
 
-// ── Stage: The Reckoning ──────────────────────────────────────────────────
+const FinalistCard: React.FC<{ c: Contender }> = ({ c }) => (
+  <div className="p-4 rounded-xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
+    <div className="flex items-center gap-3">
+      <span className="shrink-0 w-10 h-10 rounded-lg bg-green-600 text-white font-black font-mono grid place-items-center">
+        {String(c.seed).padStart(2, '0')}
+      </span>
+      <div className="min-w-0">
+        <div className="font-bold text-gray-800 truncate">{c.name}</div>
+        <div className="text-xs text-gray-500 truncate">{c.house}</div>
+      </div>
+      <Crown className="ml-auto w-4 h-4 text-amber-500 shrink-0" />
+    </div>
+    <div className="mt-3 pt-3 border-t border-green-200 grid grid-cols-3 gap-1 text-center">
+      <div>
+        <div className="text-[9px] font-bold tracking-widest uppercase text-gray-400">Record</div>
+        <div className="text-sm font-mono font-bold text-gray-800">{c.wins}–{c.losses}</div>
+      </div>
+      <div>
+        <div className="text-[9px] font-bold tracking-widest uppercase text-gray-400">Bags</div>
+        <div className="text-sm font-mono font-bold text-gray-800">{(c.bagsRate * 100).toFixed(0)}%</div>
+      </div>
+      <div>
+        <div className="text-[9px] font-bold tracking-widest uppercase text-gray-400">Nils</div>
+        <div className="text-sm font-mono font-bold text-gray-800">{c.nilCalls}</div>
+      </div>
+    </div>
+  </div>
+);
 
-const ReckoningStage: React.FC<{ finalists: Contender[]; pulse: number }> = ({ finalists, pulse }) => {
+// ── Stage III: The Final (2v2 championship) ──────────────────────────────
+
+const FinalStage: React.FC = () => {
   const north = TEAM_NORTH.map(lookup);
   const south = TEAM_SOUTH.map(lookup);
+  const [pulse, setPulse] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setPulse((p) => p + 1), 1100);
+    return () => clearInterval(t);
+  }, []);
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <SectionHeader
-        eyebrow="Stage III · The Final"
-        title="TWO THRONES"
-        subtitle="The four survivors, paired by seed — first with fourth, second with third — sit at one table for one match. The score crosses 250 only once."
-        gold
-      />
-
-      {/* The big diagonal split */}
-      <div
-        className="mt-14 relative"
-        style={{
-          minHeight: 540,
-        }}
-      >
-        {/* Diagonal divider */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none z-10"
-          viewBox="0 0 1200 540"
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="diag-gold" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(201,169,106,0)" />
-              <stop offset="50%" stopColor="rgba(201,169,106,0.9)" />
-              <stop offset="100%" stopColor="rgba(201,169,106,0)" />
-            </linearGradient>
-          </defs>
-          <line x1="640" y1="0" x2="560" y2="540" stroke="url(#diag-gold)" strokeWidth="1.5" />
-        </svg>
-
-        {/* Center medallion */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-            className="relative"
-            style={{ width: 180, height: 180 }}
-          >
-            <div
-              className="absolute inset-0 rounded-full grid place-items-center"
-              style={{
-                background: 'radial-gradient(circle, #14110d 0%, #0a0908 80%)',
-                boxShadow:
-                  '0 0 0 1px rgba(201,169,106,0.7), 0 0 0 6px rgba(10,9,8,1), 0 0 0 7px rgba(201,169,106,0.35), 0 0 60px rgba(201,169,106,0.2)',
-              }}
-            >
-              <div className="text-center">
-                <SpadeGlyph size={56} className="text-[#c9a96a] mx-auto" />
-                <div
-                  className="mt-1 text-[9px] tracking-[0.5em]"
-                  style={{ color: '#c9a96a', fontFamily: 'Cinzel, serif', fontWeight: 700 }}
-                >
-                  VERSUS
-                </div>
-              </div>
+    <div className="space-y-6">
+      {/* The big 2v2 showdown card */}
+      <Card className="overflow-hidden p-0">
+        <div className="px-6 sm:px-8 pt-6 pb-3 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div className="text-xs font-bold tracking-widest uppercase text-green-700 flex items-center gap-2">
+              <Crown className="w-4 h-4" /> Championship · 2v2
             </div>
-          </motion.div>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">
+              The Final Match
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              First team to <span className="font-bold text-gray-700">250 points</span> takes the
+              title.
+            </p>
+          </div>
+          <Pill icon={<Flame className="w-3.5 h-3.5" />} label="LIVE · Hand 9" tone="green" pulse />
         </div>
 
-        <div className="grid grid-cols-2 gap-0 h-full relative">
+        {/* Team versus block */}
+        <div className="relative grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-stretch gap-4 px-4 sm:px-6 pb-6">
           <TeamPanel
             team={north}
-            label="House of the North"
-            sigil="N"
-            align="left"
-            colorAccent="#c9a96a"
+            label="Team North"
+            tone="green"
             score={142}
             bid={9}
             tricks={5}
+            align="left"
           />
+
+          {/* VS center medallion */}
+          <div className="relative flex md:flex-col items-center justify-center py-2 md:py-0 md:px-2">
+            <div className="hidden md:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent" />
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-gray-900 via-green-900 to-gray-900 grid place-items-center shadow-2xl ring-4 ring-white"
+            >
+              <div className="text-white font-black text-lg sm:text-xl tracking-widest">VS</div>
+              <span className="absolute -top-2 -right-1 text-3xl">♠</span>
+            </motion.div>
+          </div>
+
           <TeamPanel
             team={south}
-            label="House of the South"
-            sigil="S"
-            align="right"
-            colorAccent="#5e9171"
+            label="Team South"
+            tone="blue"
             score={138}
             bid={8}
             tricks={4}
+            align="right"
           />
         </div>
-      </div>
 
-      {/* Live match dossier */}
-      <div className="mt-16 grid grid-cols-12 gap-6">
-        <div className="col-span-8">
-          <SidePanel title="HAND IX · LIVE">
-            <div className="grid grid-cols-3 gap-6 mt-2" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
-              <Stat label="HAND" value="09 / —" emerald={pulse === 0} />
-              <Stat label="TARGET" value="250 PTS" />
-              <Stat label="ELAPSED" value="01:42:18" />
-              <Stat label="TRICK" value="06 / 13" />
-              <Stat label="LED SUIT" value="♠ SPADES" />
-              <Stat label="SPADES BROKEN" value="YES" />
-            </div>
-
-            <div
-              className="mt-6 pt-5 text-[12px] italic leading-relaxed"
-              style={{ borderTop: '1px solid rgba(201,169,106,0.2)', color: '#a89880', fontFamily: 'Cormorant Garamond, serif' }}
-            >
-              <span style={{ color: '#c9a96a', fontFamily: 'Cinzel, serif', fontStyle: 'normal', letterSpacing: '0.2em', fontSize: 11 }}>
-                COMMENTARY ·
-              </span>{' '}
-              OPUS leads with the queen of spades, an unhurried claim of authority. GEM3 hesitates a half-second longer than its baseline — the model's chain-of-thought, briefly visible, debates a covering jack. L4M, sitting north, will be asked to follow.
-            </div>
-          </SidePanel>
+        {/* Live match strip */}
+        <div className="border-t border-gray-100 bg-gray-50 px-6 sm:px-8 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <LiveStat label="Hand" value="9 of —" />
+          <LiveStat label="Trick" value="6 of 13" highlight={pulse % 2 === 0} />
+          <LiveStat label="Led suit" value="♠ Spades" />
+          <LiveStat label="Spades broken" value="Yes" />
         </div>
 
-        <div className="col-span-4 space-y-5">
-          <SidePanel title="PAIRING DECREE">
-            <p className="italic text-[14px] leading-relaxed" style={{ color: '#a89880' }}>
-              By the law of seeds: <strong style={{ color: '#e8e2d5', fontFamily: 'Cinzel, serif', fontWeight: 500, fontStyle: 'normal' }}>1 with 4, 2 with 3</strong>. The strongest carries the weakest; the second carries the third. Balance is enforced.
-            </p>
-            <div
-              className="mt-4 grid grid-cols-2 gap-3 text-[10px] tracking-[0.2em]"
-              style={{ fontFamily: 'JetBrains Mono, monospace' }}
-            >
-              <div style={{ borderTop: '1px solid #c9a96a', paddingTop: 6, color: '#c9a96a' }}>
-                NORTH<br />
-                <span style={{ color: '#a89880', textTransform: 'none', letterSpacing: 'normal', fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic', fontSize: 12 }}>
-                  seed 1 + seed 4
-                </span>
-              </div>
-              <div style={{ borderTop: '1px solid #5e9171', paddingTop: 6, color: '#5e9171' }}>
-                SOUTH<br />
-                <span style={{ color: '#a89880', textTransform: 'none', letterSpacing: 'normal', fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic', fontSize: 12 }}>
-                  seed 2 + seed 3
-                </span>
-              </div>
-            </div>
-          </SidePanel>
-
-          <SidePanel title="ENTER THE RING">
-            <button
-              className="w-full py-4 transition-all hover:scale-[0.98]"
-              style={{
-                background: 'linear-gradient(180deg, #c9a96a 0%, #a78850 100%)',
-                color: '#0a0908',
-                fontFamily: 'Cinzel, serif',
-                fontWeight: 700,
-                letterSpacing: '0.3em',
-                fontSize: 13,
-                boxShadow: '0 0 0 1px rgba(201,169,106,0.5), 0 8px 24px rgba(201,169,106,0.2)',
-              }}
-            >
-              WATCH LIVE ▸
-            </button>
-            <div
-              className="mt-3 text-[10px] text-center tracking-[0.25em]"
-              style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}
-            >
-              OPENS IN BROADCAST FRAME
-            </div>
-          </SidePanel>
+        {/* CTA */}
+        <div className="px-6 sm:px-8 py-5 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md transition-all hover:scale-[0.99] flex items-center justify-center gap-2">
+            <Eye className="w-4 h-4" /> Watch Live
+          </button>
+          <button className="px-6 py-3 bg-white hover:bg-gray-50 text-gray-700 font-bold rounded-xl shadow-sm border border-gray-200 transition-all flex items-center justify-center gap-2">
+            <Trophy className="w-4 h-4" /> View Bracket
+          </button>
         </div>
+      </Card>
+
+      {/* Commentary + match log */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <SectionHead title="Live commentary" subtitle="Hand 9, trick 6 in progress." />
+          <ul className="space-y-3 text-sm text-gray-600">
+            {[
+              ['Opus leads the queen of spades — an unhurried claim of authority.', 'now'],
+              ['Gem3 hesitates; chain-of-thought briefly debates a covering jack.', '6s ago'],
+              ['L4M (north) plays the seven of clubs; trump is broken.', '14s ago'],
+              ['GPT-5 captures trick 5 with the king of hearts. South ahead by three tricks.', '38s ago'],
+            ].map(([msg, ts], i) => (
+              <li key={i} className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0">
+                <span className="shrink-0 mt-1 w-2 h-2 rounded-full bg-green-500" />
+                <span className="flex-1">{msg}</span>
+                <span className="shrink-0 text-xs font-mono text-gray-400">{ts}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card>
+          <SectionHead small title="Hand-by-hand" />
+          <div className="space-y-2">
+            {[
+              ['Hand 1', 71, 64],
+              ['Hand 2', 88, 82],
+              ['Hand 3', 95, 113],
+              ['Hand 4', 119, 138],
+              ['Hand 5', 142, 138],
+            ].map(([label, n, s]) => (
+              <div key={String(label)} className="flex items-center gap-3 text-sm">
+                <span className="w-12 text-xs font-mono text-gray-400">{label}</span>
+                <div className="flex-1 grid grid-cols-2 gap-1">
+                  <div className="text-right pr-2 font-mono text-green-700 font-bold">{n}</div>
+                  <div className="pl-2 font-mono text-blue-700 font-bold">{s}</div>
+                </div>
+              </div>
+            ))}
+            <div className="pt-2 mt-2 border-t border-gray-100 flex items-center gap-3 text-sm">
+              <span className="w-12 text-xs font-bold uppercase tracking-widest text-gray-500">Now</span>
+              <div className="flex-1 grid grid-cols-2 gap-1">
+                <div className="text-right pr-2 font-mono text-green-700 font-black text-base">142</div>
+                <div className="pl-2 font-mono text-blue-700 font-black text-base">138</div>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -791,241 +707,142 @@ const ReckoningStage: React.FC<{ finalists: Contender[]; pulse: number }> = ({ f
 const TeamPanel: React.FC<{
   team: Contender[];
   label: string;
-  sigil: string;
-  align: 'left' | 'right';
-  colorAccent: string;
+  tone: 'green' | 'blue';
   score: number;
   bid: number;
   tricks: number;
-}> = ({ team, label, sigil, align, colorAccent, score, bid, tricks }) => {
+  align: 'left' | 'right';
+}> = ({ team, label, tone, score, bid, tricks, align }) => {
+  const tones = {
+    green: {
+      ring: 'border-green-200',
+      bg: 'bg-gradient-to-br from-green-50 to-white',
+      label: 'text-green-700',
+      score: 'text-green-700',
+      seedBg: 'bg-green-600',
+    },
+    blue: {
+      ring: 'border-blue-200',
+      bg: 'bg-gradient-to-br from-blue-50 to-white',
+      label: 'text-blue-700',
+      score: 'text-blue-700',
+      seedBg: 'bg-blue-600',
+    },
+  } as const;
+  const t = tones[tone];
   const isLeft = align === 'left';
+
   return (
     <motion.div
-      initial={{ opacity: 0, x: isLeft ? -30 : 30 }}
+      initial={{ opacity: 0, x: isLeft ? -20 : 20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className={`relative px-10 py-8 ${isLeft ? 'pr-20' : 'pl-20'}`}
-      style={{
-        background: isLeft
-          ? 'linear-gradient(120deg, rgba(20,17,13,0.9) 0%, rgba(10,9,8,0.4) 100%)'
-          : 'linear-gradient(240deg, rgba(20,17,13,0.9) 0%, rgba(10,9,8,0.4) 100%)',
-      }}
+      transition={{ duration: 0.5 }}
+      className={`rounded-2xl border-2 ${t.ring} ${t.bg} p-5 ${isLeft ? 'md:text-left' : 'md:text-right'}`}
     >
-      <div className={`flex items-start gap-4 ${isLeft ? '' : 'flex-row-reverse text-right'}`}>
-        <div
-          className="shrink-0 w-16 h-20 grid place-items-center"
-          style={{
-            border: `1px solid ${colorAccent}`,
-            color: colorAccent,
-            fontFamily: 'Cinzel, serif',
-            fontWeight: 800,
-            fontSize: 36,
-          }}
-        >
-          {sigil}
-        </div>
-        <div>
-          <div
-            className="text-[10px] tracking-[0.4em]"
-            style={{ color: colorAccent, fontFamily: 'JetBrains Mono, monospace' }}
-          >
-            TEAM
-          </div>
-          <div
-            className="text-3xl mt-0.5"
-            style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, color: '#e8e2d5', letterSpacing: '0.05em' }}
-          >
-            {label.split(' ').slice(-1)[0].toUpperCase()}
-          </div>
-          <div
-            className="italic text-sm"
-            style={{ fontFamily: 'Cormorant Garamond, serif', color: '#a89880' }}
-          >
-            {label}
-          </div>
-        </div>
+      <div className={`flex items-center gap-2 ${isLeft ? '' : 'md:flex-row-reverse'}`}>
+        <span className={`text-[10px] font-bold tracking-widest uppercase ${t.label}`}>{label}</span>
+        <div className={`flex-1 h-px bg-gradient-to-r ${isLeft ? 'from-current to-transparent' : 'from-transparent to-current'} ${t.label} opacity-30`} />
       </div>
 
-      {/* members */}
-      <div className={`mt-8 space-y-3 ${isLeft ? '' : 'text-right'}`}>
+      <div className={`mt-3 flex items-baseline gap-2 ${isLeft ? '' : 'md:justify-end'}`}>
+        <span className={`text-5xl sm:text-6xl font-black font-mono ${t.score}`}>{score}</span>
+        <span className="text-xs text-gray-400">/ 250 pts</span>
+      </div>
+
+      <div className={`mt-4 space-y-2`}>
         {team.map((c) => (
           <div
             key={c.id}
-            className={`flex items-center gap-4 ${isLeft ? '' : 'flex-row-reverse'}`}
+            className={`flex items-center gap-3 ${isLeft ? '' : 'md:flex-row-reverse'}`}
           >
-            <div
-              className="shrink-0 w-10 h-10 grid place-items-center text-xs"
-              style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                color: colorAccent,
-                border: `1px solid ${colorAccent}66`,
-              }}
+            <span
+              className={`shrink-0 w-9 h-9 rounded-lg ${t.seedBg} text-white font-black font-mono grid place-items-center text-xs`}
             >
               {String(c.seed).padStart(2, '0')}
-            </div>
-            <div>
-              <div
-                className="text-lg tracking-wide"
-                style={{ fontFamily: 'Cinzel, serif', fontWeight: 500, color: '#e8e2d5' }}
-              >
-                {c.name}
-              </div>
-              <div
-                className="italic text-[13px]"
-                style={{ fontFamily: 'Cormorant Garamond, serif', color: '#7a6f5e' }}
-              >
-                {c.house} · {c.wins}–{c.losses} record · {(c.bagsRate * 100).toFixed(0)}% bag rate
-              </div>
+            </span>
+            <div className={`min-w-0 ${isLeft ? '' : 'md:text-right'}`}>
+              <div className="font-bold text-gray-800 truncate text-sm">{c.name}</div>
+              <div className="text-xs text-gray-500 truncate">{c.house} · {c.wins}–{c.losses}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* live counters */}
-      <div
-        className={`mt-8 pt-6 grid grid-cols-3 gap-4 ${isLeft ? '' : 'text-right'}`}
-        style={{ borderTop: `1px solid ${colorAccent}44` }}
-      >
+      <div className={`mt-4 pt-4 border-t border-gray-200/60 grid grid-cols-2 gap-3 ${isLeft ? '' : 'md:text-right'}`}>
         <div>
-          <div className="text-[9px] tracking-[0.3em]" style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}>
-            SCORE
-          </div>
-          <div
-            className="text-4xl tabular-nums"
-            style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, color: '#e8e2d5' }}
-          >
-            {score}
-          </div>
+          <div className="text-[10px] font-bold tracking-widest uppercase text-gray-400">Bid</div>
+          <div className="font-mono font-black text-gray-800 text-lg">{bid}</div>
         </div>
         <div>
-          <div className="text-[9px] tracking-[0.3em]" style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}>
-            BID
-          </div>
-          <div
-            className="text-4xl tabular-nums"
-            style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, color: colorAccent }}
-          >
-            {bid}
-          </div>
-        </div>
-        <div>
-          <div className="text-[9px] tracking-[0.3em]" style={{ color: '#7a6f5e', fontFamily: 'JetBrains Mono, monospace' }}>
-            TRICKS
-          </div>
-          <div
-            className="text-4xl tabular-nums"
-            style={{ fontFamily: 'Cinzel, serif', fontWeight: 700, color: '#e8e2d5' }}
-          >
-            {tricks}
-          </div>
+          <div className="text-[10px] font-bold tracking-widest uppercase text-gray-400">Tricks</div>
+          <div className="font-mono font-black text-gray-800 text-lg">{tricks}</div>
         </div>
       </div>
     </motion.div>
   );
 };
 
-// ── Shared section pieces ─────────────────────────────────────────────────
-
-const SectionHeader: React.FC<{ eyebrow: string; title: string; subtitle: string; gold?: boolean }> = ({
-  eyebrow,
-  title,
-  subtitle,
-  gold = false,
+const LiveStat: React.FC<{ label: string; value: string; highlight?: boolean }> = ({
+  label,
+  value,
+  highlight,
 }) => (
-  <div className="text-center max-w-2xl mx-auto">
-    <div
-      className="text-[10px] tracking-[0.5em]"
-      style={{
-        color: gold ? '#c9a96a' : '#7a6f5e',
-        fontFamily: 'JetBrains Mono, monospace',
-      }}
-    >
-      {eyebrow.toUpperCase()}
-    </div>
-    <h2
-      className="mt-3 text-4xl tracking-[0.15em]"
-      style={{
-        fontFamily: 'Cinzel, serif',
-        fontWeight: 700,
-        color: gold ? '#c9a96a' : '#e8e2d5',
-      }}
-    >
-      {title}
-    </h2>
-    <Ornament className="w-40 h-3 mx-auto my-4" style={{ color: gold ? '#c9a96a' : '#7a6f5e' }} />
-    <p
-      className="italic text-[15px] leading-relaxed"
-      style={{ fontFamily: 'Cormorant Garamond, serif', color: '#a89880' }}
-    >
-      {subtitle}
-    </p>
-  </div>
-);
-
-const ColumnHeader: React.FC<{ number: string; label: string }> = ({ number, label }) => (
-  <div className="flex items-baseline gap-3">
-    <span
-      className="text-[10px] tracking-[0.3em]"
-      style={{ color: '#c9a96a', fontFamily: 'JetBrains Mono, monospace' }}
-    >
-      {number}
-    </span>
-    <span
-      className="text-base tracking-[0.3em]"
-      style={{ color: '#e8e2d5', fontFamily: 'Cinzel, serif', fontWeight: 600 }}
-    >
-      {label}
-    </span>
-    <div className="flex-1 h-px" style={{ background: 'rgba(201,169,106,0.25)' }} />
-  </div>
-);
-
-const SidePanel: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <VignetteFrame>
-    <div className="px-5 py-5">
-      <div
-        className="text-[10px] tracking-[0.4em] mb-4"
-        style={{ color: '#c9a96a', fontFamily: 'Cinzel, serif', fontWeight: 600 }}
-      >
-        ┊ {title}
-      </div>
-      {children}
-    </div>
-  </VignetteFrame>
-);
-
-const Stat: React.FC<{ label: string; value: string; emerald?: boolean }> = ({ label, value, emerald = false }) => (
   <div>
-    <div className="text-[9px] tracking-[0.3em] mb-1" style={{ color: '#7a6f5e' }}>
-      {label}
-    </div>
+    <div className="text-[10px] font-bold tracking-widest uppercase text-gray-400">{label}</div>
     <div
-      className="text-lg tabular-nums"
-      style={{
-        color: emerald ? '#5e9171' : '#e8e2d5',
-        textShadow: emerald ? '0 0 12px rgba(94,145,113,0.4)' : 'none',
-      }}
+      className={`mt-0.5 text-base font-mono font-bold ${
+        highlight ? 'text-green-700' : 'text-gray-800'
+      } transition-colors`}
     >
       {value}
     </div>
   </div>
 );
 
-const StatusPip: React.FC<{ status: Contender['status'] }> = ({ status }) => {
-  const config = {
-    finalist: { color: '#c9a96a', label: 'FINALIST' },
-    eliminated: { color: '#5e1414', label: 'OUT' },
-    active: { color: '#5e9171', label: 'LIVE' },
+// ── Shared building blocks ───────────────────────────────────────────────
+
+const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({
+  children,
+  className = '',
+}) => (
+  <div
+    className={`bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl ${className.includes('p-0') ? '' : 'p-5 sm:p-6'} ${className}`}
+  >
+    {children}
+  </div>
+);
+
+const SectionHead: React.FC<{
+  title: string;
+  subtitle?: string;
+  small?: boolean;
+  inset?: boolean;
+}> = ({ title, subtitle, small = false, inset = false }) => (
+  <div
+    className={[
+      small ? 'mb-3' : 'mb-4',
+      inset ? 'px-5 pt-5 sm:px-6 sm:pt-6' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')}
+  >
+    <h3 className={`font-black text-gray-800 ${small ? 'text-sm tracking-wide' : 'text-lg sm:text-xl'}`}>
+      {title}
+    </h3>
+    {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
+  </div>
+);
+
+const StatusBadge: React.FC<{ status: Contender['status'] }> = ({ status }) => {
+  const cfg = {
+    finalist: { label: 'Finalist', cls: 'bg-green-100 text-green-700 border-green-200' },
+    eliminated: { label: 'Out', cls: 'bg-red-50 text-red-500 border-red-200' },
+    active: { label: 'Active', cls: 'bg-blue-50 text-blue-600 border-blue-200' },
   } as const;
-  const { color, label } = config[status];
+  const { label, cls } = cfg[status];
   return (
     <span
-      className="inline-block px-2 py-0.5 text-[9px] tracking-[0.25em]"
-      style={{
-        border: `1px solid ${color}66`,
-        color,
-        fontFamily: 'JetBrains Mono, monospace',
-      }}
+      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase border ${cls}`}
     >
       {label}
     </span>
