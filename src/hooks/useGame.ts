@@ -214,24 +214,30 @@ export function useGame() {
         case 'heuristic': return new HeuristicAgent(name);
         case 'gemini-flash': return new LLMAgent(name, 'gemini-3-flash-preview');
         case 'gemini-pro': return new LLMAgent(name, 'gemini-3.1-pro-preview');
-        case 'openrouter':
-          if (!config.openrouter_api_key) {
-            addLog(`Error: OpenRouter API Key missing for ${name}. Defaulting to Random.`);
+        case 'openrouter': {
+          const key = process.env.OPENROUTER_API_KEY;
+          if (!key) {
+            addLog(`Error: OPENROUTER_API_KEY missing in .env.local for ${name}. Defaulting to Random.`);
             return new RandomAgent(name);
           }
-          return new OpenRouterAgent(name, config.openrouter_api_key, player.openrouter_model);
-        case 'anthropic':
-          if (!config.anthropic_api_key) {
-            addLog(`Error: Anthropic API Key missing for ${name}. Defaulting to Random.`);
+          return new OpenRouterAgent(name, key, player.openrouter_model);
+        }
+        case 'anthropic': {
+          const key = process.env.ANTHROPIC_API_KEY;
+          if (!key) {
+            addLog(`Error: ANTHROPIC_API_KEY missing in .env.local for ${name}. Defaulting to Random.`);
             return new RandomAgent(name);
           }
-          return new AnthropicAgent(name, config.anthropic_api_key, player.anthropic_model);
-        case 'openai':
-          if (!config.openai_api_key) {
-            addLog(`Error: OpenAI API Key missing for ${name}. Defaulting to Random.`);
+          return new AnthropicAgent(name, key, player.anthropic_model);
+        }
+        case 'openai': {
+          const key = process.env.OPENAI_API_KEY;
+          if (!key) {
+            addLog(`Error: OPENAI_API_KEY missing in .env.local for ${name}. Defaulting to Random.`);
             return new RandomAgent(name);
           }
-          return new OpenAIAgent(name, config.openai_api_key, player.openai_model);
+          return new OpenAIAgent(name, key, player.openai_model);
+        }
         default: return new RandomAgent(name);
       }
     });

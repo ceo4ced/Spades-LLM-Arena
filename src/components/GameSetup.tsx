@@ -56,14 +56,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
   };
 
   const handleStart = () => {
-    onStart({
-      variant,
-      players,
-      targetScore,
-      openrouter_api_key: localStorage.getItem('spades_openrouter_key') || '',
-      anthropic_api_key: localStorage.getItem('spades_anthropic_key') || '',
-      openai_api_key: localStorage.getItem('spades_openai_key') || '',
-    });
+    onStart({ variant, players, targetScore });
   };
 
   // ─── Auto-start countdown (60s idle) ─────────────────
@@ -84,9 +77,6 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
     const autoConfig: GameConfig = {
       variant: 'jokers',
       targetScore: 250,
-      openrouter_api_key: localStorage.getItem('spades_openrouter_key') || '',
-      anthropic_api_key: localStorage.getItem('spades_anthropic_key') || '',
-      openai_api_key: localStorage.getItem('spades_openai_key') || '',
       players: [
         { seat: 0, type: 'bot', model: 'heuristic', name: 'Alpha (T1)' },
         { seat: 1, type: 'bot', model: 'random', name: 'Bravo (T2)' },

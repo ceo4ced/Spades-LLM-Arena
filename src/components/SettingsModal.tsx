@@ -8,9 +8,6 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [openRouterKey, setOpenRouterKey] = useState('');
-  const [anthropicKey, setAnthropicKey] = useState('');
-  const [openaiKey, setOpenaiKey] = useState('');
   const [gameSpeed, setGameSpeed] = useState(500);
   const [cardDelay, setCardDelay] = useState(800);
   const [trickDelay, setTrickDelay] = useState(2000);
@@ -19,9 +16,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
   useEffect(() => {
     if (isOpen) {
-      setOpenRouterKey(localStorage.getItem('spades_openrouter_key') || '');
-      setAnthropicKey(localStorage.getItem('spades_anthropic_key') || '');
-      setOpenaiKey(localStorage.getItem('spades_openai_key') || '');
       setGameSpeed(parseInt(localStorage.getItem('spades_game_speed') || '500'));
       setCardDelay(parseInt(localStorage.getItem('spades_card_delay') || '800'));
       setTrickDelay(parseInt(localStorage.getItem('spades_trick_delay') || '2000'));
@@ -35,10 +29,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     }
   }, [isOpen]);
 
+  // Show which provider keys Vite found in .env.local at build time. Only the
+  // presence is shown — the values are never rendered, even though they are
+  // bundled into the JS at build time.
+  const detectedKeys = {
+    Gemini: !!process.env.GEMINI_API_KEY,
+    Anthropic: !!process.env.ANTHROPIC_API_KEY,
+    OpenAI: !!process.env.OPENAI_API_KEY,
+    OpenRouter: !!process.env.OPENROUTER_API_KEY,
+  };
+
   const handleSave = () => {
-    localStorage.setItem('spades_openrouter_key', openRouterKey);
-    localStorage.setItem('spades_anthropic_key', anthropicKey);
-    localStorage.setItem('spades_openai_key', openaiKey);
     localStorage.setItem('spades_game_speed', gameSpeed.toString());
     localStorage.setItem('spades_card_delay', cardDelay.toString());
     localStorage.setItem('spades_trick_delay', trickDelay.toString());
@@ -191,67 +192,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                 </div>
               </div>
 
-              {/* ─── API Keys ─── */}
+              {/* ─── API Keys (read-only — set in .env.local) ─── */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                   <Key className="w-4 h-4" />
                   API Keys
                 </h3>
                 <p className="text-xs text-gray-500 -mt-1">
-                  All keys are stored locally in your browser only. Set the providers
-                  you want to play with — leave the rest blank.
+                  All keys are configured in <code className="bg-gray-100 px-1 rounded">.env.local</code> at the
+                  project root. Restart <code className="bg-gray-100 px-1 rounded">npm run dev</code> after editing.
                 </p>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Anthropic API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={anthropicKey}
-                    onChange={(e) => setAnthropicKey(e.target.value)}
-                    placeholder="sk-ant-..."
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    For direct Claude (Opus 4.7, Sonnet 4.6, Haiku 4.5).
-                  </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(detectedKeys).map(([provider, present]) => (
+                    <div
+                      key={provider}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <span className="text-sm text-gray-700">{provider}</span>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${
+                          present
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-400'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            present ? 'bg-green-500' : 'bg-gray-300'
+                          }`}
+                        />
+                        {present ? 'Detected' : 'Missing'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    OpenAI API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={openaiKey}
-                    onChange={(e) => setOpenaiKey(e.target.value)}
-                    placeholder="sk-..."
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    For direct GPT-4o / GPT-4o Mini.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    OpenRouter API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={openRouterKey}
-                    onChange={(e) => setOpenRouterKey(e.target.value)}
-                    placeholder="sk-or-..."
-                    className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Single gateway to many models (Llama, Mistral, DeepSeek, Qwen, etc.).
-                  </p>
-                </div>
-
-                <p className="text-xs text-gray-400 pt-1">
-                  Gemini key is set via <code className="bg-gray-100 px-1 rounded">.env.local</code> (server-side, not here).
+                <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                  <strong>Heads up:</strong> Vite bakes these keys into the JS bundle at
+                  build time, so anyone who can load the built site can read them. Fine
+                  for local benchmarking; for production, proxy through a backend.
                 </p>
               </div>
             </div>

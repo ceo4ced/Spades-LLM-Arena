@@ -10,9 +10,6 @@ export interface Card {
 export interface GameConfig {
   variant: 'standard' | 'jokers';
   targetScore: number;
-  openrouter_api_key?: string;
-  anthropic_api_key?: string;
-  openai_api_key?: string;
   players: {
     seat: number;
     type: 'human' | 'bot';
