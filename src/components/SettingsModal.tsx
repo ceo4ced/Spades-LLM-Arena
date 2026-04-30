@@ -27,14 +27,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     }
   }, [isOpen]);
 
-  // LLM-provider keys live in .env.local. The detection panel below shows
-  // which ones Vite found at build time, but never the values themselves.
-  // Gemini is omitted from this view per request — it's still loaded by
-  // LLMAgent from process.env.GEMINI_API_KEY just like the others.
+  // Keys live in .env.local. The detection panel below shows which ones
+  // Vite found at build time, but never the values themselves. YouTube is
+  // checked via a presence flag (the value stays server-side and is never
+  // bundled into the browser JS).
   const detectedKeys = {
     Anthropic: !!process.env.ANTHROPIC_API_KEY,
     OpenAI: !!process.env.OPENAI_API_KEY,
     OpenRouter: !!process.env.OPENROUTER_API_KEY,
+    YouTube: !!process.env.YOUTUBE_STREAM_KEY_PRESENT,
   };
 
   const handleSave = () => {
