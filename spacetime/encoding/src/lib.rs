@@ -7,5 +7,8 @@
 //!
 //! Modules are added incrementally, one at a time, behind passing tests.
 
+pub mod bid;
 pub mod card;
 pub mod card_set;
+pub mod strength;
+pub mod variant;
