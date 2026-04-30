@@ -6,6 +6,8 @@ import { RandomAgent } from '../agents/random_agent';
 import { HeuristicAgent } from '../agents/heuristic_agent';
 import { LLMAgent } from '../agents/llm_agent';
 import { OpenRouterAgent } from '../agents/openrouter_agent';
+import { AnthropicAgent } from '../agents/anthropic_agent';
+import { OpenAIAgent } from '../agents/openai_agent';
 import { saveResult } from '../engine/resultsStore';
 
 export function useGame() {
@@ -212,12 +214,30 @@ export function useGame() {
         case 'heuristic': return new HeuristicAgent(name);
         case 'gemini-flash': return new LLMAgent(name, 'gemini-3-flash-preview');
         case 'gemini-pro': return new LLMAgent(name, 'gemini-3.1-pro-preview');
-        case 'openrouter':
-          if (!config.openrouter_api_key) {
-            addLog(`Error: OpenRouter API Key missing for ${name}. Defaulting to Random.`);
+        case 'openrouter': {
+          const key = process.env.OPENROUTER_API_KEY;
+          if (!key) {
+            addLog(`Error: OPENROUTER_API_KEY missing in .env.local for ${name}. Defaulting to Random.`);
             return new RandomAgent(name);
           }
-          return new OpenRouterAgent(name, config.openrouter_api_key, player.openrouter_model);
+          return new OpenRouterAgent(name, key, player.openrouter_model);
+        }
+        case 'anthropic': {
+          const key = process.env.ANTHROPIC_API_KEY;
+          if (!key) {
+            addLog(`Error: ANTHROPIC_API_KEY missing in .env.local for ${name}. Defaulting to Random.`);
+            return new RandomAgent(name);
+          }
+          return new AnthropicAgent(name, key, player.anthropic_model);
+        }
+        case 'openai': {
+          const key = process.env.OPENAI_API_KEY;
+          if (!key) {
+            addLog(`Error: OPENAI_API_KEY missing in .env.local for ${name}. Defaulting to Random.`);
+            return new RandomAgent(name);
+          }
+          return new OpenAIAgent(name, key, player.openai_model);
+        }
         default: return new RandomAgent(name);
       }
     });
@@ -227,6 +247,8 @@ export function useGame() {
     const getModelLabel = (p: GameConfig['players'][0]) => {
       if (p.type === 'human') return 'Human';
       if (p.model === 'openrouter' && p.openrouter_model) return p.openrouter_model.split('/').pop() || p.openrouter_model;
+      if (p.model === 'anthropic' && p.anthropic_model) return p.anthropic_model;
+      if (p.model === 'openai' && p.openai_model) return p.openai_model;
       return p.model;
     };
     modelConfigRef.current = {

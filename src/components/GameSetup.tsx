@@ -23,6 +23,17 @@ const OPENROUTER_MODELS = [
   { id: 'microsoft/phi-3-medium-128k-instruct', name: 'Phi-3 Medium' },
 ];
 
+const ANTHROPIC_MODELS = [
+  { id: 'claude-opus-4-7', name: 'Claude Opus 4.7 (most capable)' },
+  { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (balanced)' },
+  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5 (fastest)' },
+];
+
+const OPENAI_MODELS = [
+  { id: 'gpt-4o', name: 'GPT-4o' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+];
+
 export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, onTournament }) => {
   const [variant, setVariant] = useState<'standard' | 'jokers'>('standard');
   const [targetScore, setTargetScore] = useState<number>(500);
@@ -45,8 +56,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
   };
 
   const handleStart = () => {
-    const openRouterKey = localStorage.getItem('spades_openrouter_key') || '';
-    onStart({ variant, players, targetScore, openrouter_api_key: openRouterKey });
+    onStart({ variant, players, targetScore });
   };
 
   // ─── Auto-start countdown (60s idle) ─────────────────
@@ -64,11 +74,9 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
     if (hasAutoStarted.current) return;
     hasAutoStarted.current = true;
     // TODO: Check for tournament schedule here — if tournament exists, defer to it
-    const openRouterKey = localStorage.getItem('spades_openrouter_key') || '';
     const autoConfig: GameConfig = {
       variant: 'jokers',
       targetScore: 250,
-      openrouter_api_key: openRouterKey,
       players: [
         { seat: 0, type: 'bot', model: 'heuristic', name: 'Alpha (T1)' },
         { seat: 1, type: 'bot', model: 'random', name: 'Bravo (T2)' },
@@ -141,9 +149,15 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
             >
               <option value="heuristic">Heuristic (Rule-based)</option>
               <option value="random">Random (Baseline)</option>
-              <option value="gemini-flash">Gemini Flash</option>
-              <option value="gemini-pro">Gemini Pro</option>
-              <option value="openrouter">OpenRouter LLM</option>
+              <optgroup label="Direct providers">
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="openai">OpenAI</option>
+                <option value="gemini-flash">Gemini Flash</option>
+                <option value="gemini-pro">Gemini Pro</option>
+              </optgroup>
+              <optgroup label="Gateway">
+                <option value="openrouter">OpenRouter (multi-model)</option>
+              </optgroup>
             </select>
 
             {player.model === 'openrouter' && (
@@ -153,6 +167,30 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
                 className="bg-white border border-gray-300 rounded px-2 py-1 text-xs"
               >
                 {OPENROUTER_MODELS.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
+
+            {player.model === 'anthropic' && (
+              <select
+                value={player.anthropic_model || ANTHROPIC_MODELS[0].id}
+                onChange={(e) => updatePlayer(seat, 'anthropic_model', e.target.value)}
+                className="bg-white border border-gray-300 rounded px-2 py-1 text-xs"
+              >
+                {ANTHROPIC_MODELS.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            )}
+
+            {player.model === 'openai' && (
+              <select
+                value={player.openai_model || OPENAI_MODELS[0].id}
+                onChange={(e) => updatePlayer(seat, 'openai_model', e.target.value)}
+                className="bg-white border border-gray-300 rounded px-2 py-1 text-xs"
+              >
+                {OPENAI_MODELS.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
