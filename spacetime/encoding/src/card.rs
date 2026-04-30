@@ -10,10 +10,101 @@
 //! the module. All construction goes through `Card::new` (rank+suit) or
 //! `Card::from_index` (raw index, returns `Option`).
 //!
-//! Implementation lives below the test block — written only after every test
-//! in this file fails for the right reason (RED phase).
+//! Card identity is variant-independent. Trump strength (which can promote 2♦,
+//! 2♠, or jokers above the Ace of Spades) is computed by separate functions
+//! that take both `Card` and `Variant` — see `strength.rs` and `legal.rs`.
 
-// ─── Tests (RED before any implementation) ───────────────────────────────
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Card(u8);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Rank {
+    Two = 0,
+    Three = 1,
+    Four = 2,
+    Five = 3,
+    Six = 4,
+    Seven = 5,
+    Eight = 6,
+    Nine = 7,
+    Ten = 8,
+    Jack = 9,
+    Queen = 10,
+    King = 11,
+    Ace = 12,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum Suit {
+    Clubs = 0,
+    Diamonds = 1,
+    Hearts = 2,
+    Spades = 3,
+}
+
+impl Card {
+    pub const LITTLE_JOKER: Card = Card(52);
+    pub const BIG_JOKER: Card = Card(53);
+
+    pub const fn new(rank: Rank, suit: Suit) -> Card {
+        Card((rank as u8) * 4 + (suit as u8))
+    }
+
+    pub const fn from_index(index: u8) -> Option<Card> {
+        if index < 54 {
+            Some(Card(index))
+        } else {
+            None
+        }
+    }
+
+    pub const fn to_index(self) -> u8 {
+        self.0
+    }
+
+    pub const fn is_joker(self) -> bool {
+        self.0 >= 52
+    }
+
+    pub fn rank(self) -> Option<Rank> {
+        if self.is_joker() {
+            return None;
+        }
+        match self.0 / 4 {
+            0 => Some(Rank::Two),
+            1 => Some(Rank::Three),
+            2 => Some(Rank::Four),
+            3 => Some(Rank::Five),
+            4 => Some(Rank::Six),
+            5 => Some(Rank::Seven),
+            6 => Some(Rank::Eight),
+            7 => Some(Rank::Nine),
+            8 => Some(Rank::Ten),
+            9 => Some(Rank::Jack),
+            10 => Some(Rank::Queen),
+            11 => Some(Rank::King),
+            12 => Some(Rank::Ace),
+            _ => unreachable!("is_joker gate ensures self.0 < 52, so self.0 / 4 < 13"),
+        }
+    }
+
+    pub fn suit(self) -> Option<Suit> {
+        if self.is_joker() {
+            return None;
+        }
+        match self.0 % 4 {
+            0 => Some(Suit::Clubs),
+            1 => Some(Suit::Diamonds),
+            2 => Some(Suit::Hearts),
+            3 => Some(Suit::Spades),
+            _ => unreachable!("u8 % 4 is always 0..=3"),
+        }
+    }
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
