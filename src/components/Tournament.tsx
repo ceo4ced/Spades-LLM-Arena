@@ -25,9 +25,8 @@ import { ChevronLeft, Trophy, Flame, Clock, Eye, Crown, Users } from 'lucide-rea
 // ── Mock tournament data ───────────────────────────────────────────────────
 type Team = {
   id: string;
-  model: string;
-  short: string;
-  house: string;
+  model: string;       // canonical model+version, the team's identity
+  house: string;       // brand / vendor
   seed: number;
   qualWins: number;
   qualLosses: number;
@@ -35,23 +34,26 @@ type Team = {
 };
 
 // 16 teams in qualifying — each team is one model paired with itself.
+// The team's identity is the model name + version (e.g. "Claude Opus 4.7"),
+// not the brand. Multiple models from the same brand (Opus 4.7, Sonnet 4.6,
+// Haiku 4.5) compete as separate teams.
 const TEAMS: Team[] = [
-  { id: 'opus', model: 'Claude Opus 4.7', short: 'OPUS', house: 'Anthropic', seed: 1, qualWins: 11, qualLosses: 1, status: 'finalist' },
-  { id: 'gpt5', model: 'GPT-5 Pro', short: 'GPT5', house: 'OpenAI', seed: 2, qualWins: 10, qualLosses: 2, status: 'finalist' },
-  { id: 'gem3', model: 'Gemini 3 Ultra', short: 'GEM3', house: 'Google', seed: 3, qualWins: 10, qualLosses: 2, status: 'eliminated' },
-  { id: 'l4m', model: 'Llama 4 Maverick', short: 'L4M', house: 'Meta', seed: 4, qualWins: 9, qualLosses: 3, status: 'eliminated' },
-  { id: 'sonnet', model: 'Claude Sonnet 4.6', short: 'SON', house: 'Anthropic', seed: 5, qualWins: 8, qualLosses: 4, status: 'eliminated' },
-  { id: 'qwen', model: 'Qwen 3 Max', short: 'QWN', house: 'Alibaba', seed: 6, qualWins: 8, qualLosses: 4, status: 'eliminated' },
-  { id: 'mistral', model: 'Mistral Grand', short: 'MIS', house: 'Mistral', seed: 7, qualWins: 7, qualLosses: 5, status: 'eliminated' },
-  { id: 'dsr', model: 'DeepSeek R2', short: 'DSR', house: 'DeepSeek', seed: 8, qualWins: 7, qualLosses: 5, status: 'eliminated' },
-  { id: 'haiku', model: 'Claude Haiku 4.5', short: 'HAI', house: 'Anthropic', seed: 9, qualWins: 6, qualLosses: 6, status: 'eliminated' },
-  { id: 'gpt5m', model: 'GPT-5 Mini', short: 'G5M', house: 'OpenAI', seed: 10, qualWins: 6, qualLosses: 6, status: 'eliminated' },
-  { id: 'gem3f', model: 'Gemini 3 Flash', short: 'G3F', house: 'Google', seed: 11, qualWins: 5, qualLosses: 7, status: 'eliminated' },
-  { id: 'cmd', model: 'Cohere Command R+', short: 'CMD', house: 'Cohere', seed: 12, qualWins: 5, qualLosses: 7, status: 'eliminated' },
-  { id: 'phi4', model: 'Phi-4 Reasoner', short: 'PHI', house: 'Microsoft', seed: 13, qualWins: 4, qualLosses: 8, status: 'eliminated' },
-  { id: 'grok', model: 'Grok 3', short: 'GRK', house: 'xAI', seed: 14, qualWins: 4, qualLosses: 8, status: 'eliminated' },
-  { id: 'l4s', model: 'Llama 4 Scout', short: 'L4S', house: 'Meta', seed: 15, qualWins: 3, qualLosses: 9, status: 'eliminated' },
-  { id: 'heu', model: 'House Heuristic', short: 'HEU', house: 'Arena', seed: 16, qualWins: 2, qualLosses: 10, status: 'eliminated' },
+  { id: 'opus47', model: 'Claude Opus 4.7', house: 'Anthropic', seed: 1, qualWins: 11, qualLosses: 1, status: 'finalist' },
+  { id: 'gpt55', model: 'GPT-5.5 Pro', house: 'OpenAI', seed: 2, qualWins: 10, qualLosses: 2, status: 'finalist' },
+  { id: 'gem3u', model: 'Gemini 3 Ultra', house: 'Google', seed: 3, qualWins: 10, qualLosses: 2, status: 'eliminated' },
+  { id: 'l4mav', model: 'Llama 4 Maverick', house: 'Meta', seed: 4, qualWins: 9, qualLosses: 3, status: 'eliminated' },
+  { id: 'son46', model: 'Claude Sonnet 4.6', house: 'Anthropic', seed: 5, qualWins: 8, qualLosses: 4, status: 'eliminated' },
+  { id: 'qwen3', model: 'Qwen 3 Max', house: 'Alibaba', seed: 6, qualWins: 8, qualLosses: 4, status: 'eliminated' },
+  { id: 'mistr', model: 'Mistral Grand', house: 'Mistral', seed: 7, qualWins: 7, qualLosses: 5, status: 'eliminated' },
+  { id: 'dsr2', model: 'DeepSeek R2', house: 'DeepSeek', seed: 8, qualWins: 7, qualLosses: 5, status: 'eliminated' },
+  { id: 'hai45', model: 'Claude Haiku 4.5', house: 'Anthropic', seed: 9, qualWins: 6, qualLosses: 6, status: 'eliminated' },
+  { id: 'gpt55m', model: 'GPT-5.5 Mini', house: 'OpenAI', seed: 10, qualWins: 6, qualLosses: 6, status: 'eliminated' },
+  { id: 'gem3f', model: 'Gemini 3 Flash', house: 'Google', seed: 11, qualWins: 5, qualLosses: 7, status: 'eliminated' },
+  { id: 'cmdrp', model: 'Cohere Command R+', house: 'Cohere', seed: 12, qualWins: 5, qualLosses: 7, status: 'eliminated' },
+  { id: 'phi4r', model: 'Phi-4 Reasoner', house: 'Microsoft', seed: 13, qualWins: 4, qualLosses: 8, status: 'eliminated' },
+  { id: 'grok3', model: 'Grok 3', house: 'xAI', seed: 14, qualWins: 4, qualLosses: 8, status: 'eliminated' },
+  { id: 'l4sct', model: 'Llama 4 Scout', house: 'Meta', seed: 15, qualWins: 3, qualLosses: 9, status: 'eliminated' },
+  { id: 'heu', model: 'House Heuristic', house: 'Arena', seed: 16, qualWins: 2, qualLosses: 10, status: 'eliminated' },
 ];
 
 const ADVANCING = TEAMS.filter((t) => t.seed <= 8);
@@ -71,13 +73,13 @@ type Match = {
 };
 
 const BRACKET: Match[] = [
-  { id: 'qf1', round: 'qf', position: 0, teamA: 'opus', teamB: 'dsr', scoreA: 250, scoreB: 178, winner: 'opus' },
-  { id: 'qf2', round: 'qf', position: 1, teamA: 'l4m', teamB: 'sonnet', scoreA: 198, scoreB: 250, winner: 'sonnet' },
-  { id: 'qf3', round: 'qf', position: 2, teamA: 'gem3', teamB: 'qwen', scoreA: 250, scoreB: 165, winner: 'gem3' },
-  { id: 'qf4', round: 'qf', position: 3, teamA: 'gpt5', teamB: 'mistral', scoreA: 250, scoreB: 142, winner: 'gpt5' },
-  { id: 'sf1', round: 'sf', position: 0, teamA: 'opus', teamB: 'sonnet', scoreA: 250, scoreB: 211, winner: 'opus' },
-  { id: 'sf2', round: 'sf', position: 1, teamA: 'gem3', teamB: 'gpt5', scoreA: 224, scoreB: 250, winner: 'gpt5' },
-  { id: 'final', round: 'final', position: 0, teamA: 'opus', teamB: 'gpt5', scoreA: 142, scoreB: 138, inProgress: true },
+  { id: 'qf1', round: 'qf', position: 0, teamA: 'opus47', teamB: 'dsr2', scoreA: 250, scoreB: 178, winner: 'opus47' },
+  { id: 'qf2', round: 'qf', position: 1, teamA: 'l4mav', teamB: 'son46', scoreA: 198, scoreB: 250, winner: 'son46' },
+  { id: 'qf3', round: 'qf', position: 2, teamA: 'gem3u', teamB: 'qwen3', scoreA: 250, scoreB: 165, winner: 'gem3u' },
+  { id: 'qf4', round: 'qf', position: 3, teamA: 'gpt55', teamB: 'mistr', scoreA: 250, scoreB: 142, winner: 'gpt55' },
+  { id: 'sf1', round: 'sf', position: 0, teamA: 'opus47', teamB: 'son46', scoreA: 250, scoreB: 211, winner: 'opus47' },
+  { id: 'sf2', round: 'sf', position: 1, teamA: 'gem3u', teamB: 'gpt55', scoreA: 224, scoreB: 250, winner: 'gpt55' },
+  { id: 'final', round: 'final', position: 0, teamA: 'opus47', teamB: 'gpt55', scoreA: 142, scoreB: 138, inProgress: true },
 ];
 
 const FINAL_MATCH = BRACKET.find((m) => m.round === 'final')!;
@@ -280,11 +282,8 @@ const QualifiersStage: React.FC = () => (
                 <React.Fragment key={t.id}>
                   <tr className={`border-t border-gray-100 hover:bg-gray-50 transition-colors ${t.status === 'finalist' ? 'bg-green-50/40' : ''}`}>
                     <td className="px-4 py-3 font-mono text-gray-500">{String(t.seed).padStart(2, '0')}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-800">Team {t.short}</span>
-                        <span className="text-xs text-gray-500">· {t.model}</span>
-                      </div>
+                    <td className="px-4 py-3 font-bold text-gray-800">
+                      Team {t.model}
                     </td>
                     <td className="px-4 py-3 text-gray-500">{t.house}</td>
                     <td className="px-4 py-3 font-mono font-bold text-green-700">{t.qualWins}</td>
@@ -329,25 +328,29 @@ const QualifiersStage: React.FC = () => (
       <Card>
         <SectionHead small title="Bracket seeding" />
         <p className="text-sm text-gray-600 mb-3">First-round matchups by seed:</p>
-        <ul className="space-y-2 text-sm font-mono">
+        <ul className="space-y-2.5 text-sm">
           {[
-            ['1', 'Opus', '8', 'DSR'],
-            ['4', 'L4M', '5', 'Sonnet'],
-            ['3', 'Gem3', '6', 'Qwen'],
-            ['2', 'GPT5', '7', 'Mistral'],
-          ].map(([sa, na, sb, nb], i) => (
-            <li key={i} className="flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="w-5 h-5 rounded bg-blue-100 text-blue-700 grid place-items-center font-bold">{sa}</span>
-                <span className="text-gray-700">{na}</span>
-              </span>
-              <span className="text-gray-400">vs</span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-gray-700">{nb}</span>
-                <span className="w-5 h-5 rounded bg-red-100 text-red-700 grid place-items-center font-bold">{sb}</span>
-              </span>
-            </li>
-          ))}
+            ['1', 'opus47', '8', 'dsr2'],
+            ['4', 'l4mav', '5', 'son46'],
+            ['3', 'gem3u', '6', 'qwen3'],
+            ['2', 'gpt55', '7', 'mistr'],
+          ].map(([sa, ida, sb, idb], i) => {
+            const a = lookup(ida);
+            const b = lookup(idb);
+            return (
+              <li key={i} className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="shrink-0 w-5 h-5 rounded bg-blue-100 text-blue-700 grid place-items-center font-bold font-mono">{sa}</span>
+                  <span className="text-gray-700 truncate">{a.model}</span>
+                </span>
+                <span className="shrink-0 text-gray-400 font-mono">vs</span>
+                <span className="flex items-center gap-1.5 min-w-0 justify-end">
+                  <span className="text-gray-700 truncate">{b.model}</span>
+                  <span className="shrink-0 w-5 h-5 rounded bg-red-100 text-red-700 grid place-items-center font-bold font-mono">{sb}</span>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </Card>
     </div>
@@ -478,9 +481,9 @@ const BracketTeamRow: React.FC<{
       </span>
       <div className="min-w-0 flex-1">
         <div className={`font-bold truncate ${isWinner ? 'text-gray-900' : 'text-gray-700'} ${large ? 'text-base' : 'text-sm'}`}>
-          Team {team.short}
+          Team {team.model}
         </div>
-        <div className="text-[11px] text-gray-500 truncate">{team.model}</div>
+        <div className="text-[11px] text-gray-500 truncate">{team.house}</div>
       </div>
       {score !== undefined && (
         <div className={`font-mono font-black ${large ? 'text-2xl' : 'text-lg'} ${isWinner ? 'text-green-700' : 'text-gray-400'}`}>
@@ -524,7 +527,7 @@ const FinalStage: React.FC = () => {
               <Crown className="w-4 h-4" /> Championship · 2v2 Final
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">
-              Team {teamA.short} <span className="text-gray-400 font-normal">vs</span> Team {teamB.short}
+              Team {teamA.model} <span className="text-gray-400 font-normal">vs</span> Team {teamB.model}
             </h2>
             <p className="text-sm text-gray-500 mt-1">
               Each team is two instances of the same model. First to{' '}
@@ -586,10 +589,10 @@ const FinalStage: React.FC = () => {
           <SectionHead title="Live commentary" subtitle="Hand 9, trick 6 in progress." />
           <ul className="space-y-3 text-sm text-gray-600">
             {[
-              ['Opus (seat 1) leads the queen of spades — an unhurried claim of authority.', 'now'],
-              ['GPT-5 (seat 2) hesitates; chain-of-thought briefly debates a covering jack.', '6s ago'],
-              ['Opus (seat 3) plays the seven of clubs, drawing trump.', '14s ago'],
-              ['GPT-5 (seat 4) captures trick 5 with the king of hearts. Team GPT-5 ahead by three tricks.', '38s ago'],
+              ['Claude Opus 4.7 (seat 1) leads the queen of spades — an unhurried claim of authority.', 'now'],
+              ['GPT-5.5 Pro (seat 2) hesitates; chain-of-thought briefly debates a covering jack.', '6s ago'],
+              ['Claude Opus 4.7 (seat 3) plays the seven of clubs, drawing trump.', '14s ago'],
+              ['GPT-5.5 Pro (seat 4) captures trick 5 with the king of hearts. Team GPT-5.5 Pro ahead by three tricks.', '38s ago'],
             ].map(([msg, ts], i) => (
               <li key={i} className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0">
                 <span className="shrink-0 mt-1 w-2 h-2 rounded-full bg-green-500" />
@@ -604,8 +607,8 @@ const FinalStage: React.FC = () => {
           <SectionHead small title="Hand-by-hand" />
           <div className="grid grid-cols-3 text-[10px] tracking-widest uppercase text-gray-400 mb-2">
             <span>Hand</span>
-            <span className="text-blue-700 text-right">Team {teamA.short}</span>
-            <span className="text-red-700 text-right">Team {teamB.short}</span>
+            <span className="text-blue-700 text-right">Team 1</span>
+            <span className="text-red-700 text-right">Team 2</span>
           </div>
           <div className="space-y-1.5 text-sm">
             {[
@@ -684,12 +687,14 @@ const TeamPanel: React.FC<{
         </div>
       </div>
 
-      {/* Team identity */}
+      {/* Team identity — model + version is the team name */}
       <div className={`mt-2 flex items-baseline gap-2 ${isLeft ? '' : 'md:justify-end'}`}>
-        <h3 className="text-2xl sm:text-3xl font-black text-gray-900 truncate">Team {team.short}</h3>
+        <h3 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">
+          Team {team.model}
+        </h3>
       </div>
       <div className={`text-sm text-gray-500 ${isLeft ? '' : 'md:text-right'}`}>
-        Two of <span className="font-semibold text-gray-700">{team.model}</span>
+        {team.house} · same model in both seats
       </div>
 
       {/* Score */}
@@ -757,8 +762,8 @@ const PathCard: React.FC<{
         <Users className={`w-4 h-4 ${c.label}`} />
         <span className={`text-[10px] font-bold tracking-widest uppercase ${c.label}`}>Path to the Final</span>
       </div>
-      <h3 className="text-lg font-black text-gray-800">Team {team.short}</h3>
-      <p className="text-xs text-gray-500 mb-4">{team.model} · seed {team.seed}</p>
+      <h3 className="text-lg font-black text-gray-800 leading-tight">Team {team.model}</h3>
+      <p className="text-xs text-gray-500 mb-4">{team.house} · seed {team.seed}</p>
 
       <div className="space-y-3">
         {path.map((p, i) => (
@@ -767,8 +772,10 @@ const PathCard: React.FC<{
               {roundLabel[p.round]}
             </span>
             <div className="flex-1 min-w-0">
-              <div className="text-gray-700 truncate">def. <span className="font-semibold">Team {p.opp.short}</span></div>
-              <div className="text-xs text-gray-400 truncate">{p.opp.model}</div>
+              <div className="text-gray-700 truncate">
+                def. <span className="font-semibold">Team {p.opp.model}</span>
+              </div>
+              <div className="text-xs text-gray-400 truncate">{p.opp.house}</div>
             </div>
             <span className={`font-mono font-black text-sm ${c.score}`}>
               {p.us}–{p.them}
