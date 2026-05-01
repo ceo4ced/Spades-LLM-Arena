@@ -160,9 +160,12 @@ export function useGame() {
 
       // Check if trick is complete
       if (engine.isTrickComplete()) {
-        // Wait to see all 4 cards before resolving
-        await new Promise(resolve => setTimeout(resolve, trickDelay));
-        if (loopIdRef.current !== currentLoopId || !isRunningRef.current) return;
+        // Resolve immediately — the cardDelay above already gave a beat after
+        // the 4th card. Holding the *trickDelay* before resolveTrick attributed
+        // the long 2-second pause to whoever played 4th (often the South seat,
+        // since the dealer is fixed at seat 0 and trick 1 always ends on
+        // seat 0). Resolving first, then pausing, attributes the long delay
+        // to the trick transition instead — much less misleading.
         engine.resolveTrick();
 
         // Two-line trick summary for every trick
@@ -177,6 +180,11 @@ export function useGame() {
         }
 
         setGameState({ ...engine.state });
+
+        // Pause now — perceived as the trick transition / winner-leads-next
+        // moment, not as a particular seat lagging.
+        await new Promise(resolve => setTimeout(resolve, trickDelay));
+        if (loopIdRef.current !== currentLoopId || !isRunningRef.current) return;
       }
 
       // Continue loop

@@ -10,5 +10,11 @@
 pub mod bid;
 pub mod card;
 pub mod card_set;
+pub mod hand;
+pub mod house_rules;
+pub mod legal;
+pub mod observation;
+pub mod replay;
+pub mod score;
 pub mod strength;
 pub mod variant;

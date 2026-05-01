@@ -119,31 +119,74 @@ Variant-specific behavior is centralized in pure functions:
 
 ### Bids
 
-A bid is one of three kinds, available in **all three variants**:
+A bid is one of four kinds:
 
 ```rust
 pub enum Bid {
-    Regular(u8),   // 1..=13 — standard contract
-    Nil,           // "I will win zero tricks." Bonus +50 / -50 (or +100 / -100 in some houses).
-                   //   Partner's tricks count for partner only — not for the nil bidder.
-    BlindNil,      // Nil declared before looking at hand. Bonus +200 / -200 typically.
+    Regular(u8),   // 1..=13 — standard contract; available in all variants
+    Nil,           // bid 0 sighted; available in all variants
+    BlindNil,      // bid 0 declared sight-unseen; available in all variants
+    Blind(u8),     // 6..=13 declared sight-unseen, doubled scoring;
+                   //   available ONLY in JJA and JJDD
 }
 ```
 
-Packed encoding (4 bits per seat):
-- `0` — not yet bid (sentinel — only valid mid-bidding-phase)
-- `1..=13` — regular bid of that value
-- `14` — Nil
-- `15` — BlindNil
+`Blind(N)` is rejected by `legal_bids` in `Variant::Standard`. In JJA/JJDD it must be at least 6 books.
 
-A `Hand` row's `bids_packed: u16` holds 4 seats × 4 bits = 16 bits.
+#### Packed encoding (8 bits per seat = `u32`)
 
-Scoring nil correctly is non-trivial — see `encoding/src/score.rs` (future module). Key rules:
-- Successful nil: bonus added to team score, but the partner's *regular* bid is scored separately.
-- Failed nil: penalty subtracted from team score; tricks the nil bidder *did* win count toward bags (or in some variants, toward the partner's contract).
-- Successful blind nil: bonus is doubled.
+Going from `u16` to `u32` because the bid space expanded from 16 distinct states (4-bit nibbles) to ~24 distinct states. 8-bit-per-seat encoding keeps hex dumps readable.
 
-Each variant of nil is a distinct training signal — Team Iterate should learn when to risk a nil, when to risk a blind nil, and when to bid regular. Encoding them as separate cases (rather than collapsing nil into "bid 0") preserves that information.
+| Code | Meaning |
+|---|---|
+| `0` | not bid yet (sentinel) |
+| `1..=13` | `Regular(N)` |
+| `14` | `Nil` |
+| `15` | `BlindNil` |
+| `16..=23` | `Blind(N)` where `N = code − 10` (so `Blind(6)=16`, `Blind(13)=23`) |
+
+A `Hand` row's `bids_packed: u32` holds 4 seats × 8 bits = 32 bits, with seat 0 in the low byte.
+
+Example: seats `[Regular(3), Nil, None, BlindNil]` packs to `0x0F_00_0E_03`.
+
+#### Scoring rules per outcome
+
+**Standard variant (Ace High):**
+
+| Outcome | Score |
+|---|---|
+| Made `Regular(N)` | `+N × 10`; overtricks become bags |
+| Set `Regular(N)` | `−N × 10`; tricks won count as bags |
+| Made `Nil` (partner unaffected) | `+100` |
+| Failed `Nil` | `−100`; tricks won by nil bidder become team bags |
+| Made `BlindNil` | `+200` |
+| Failed `BlindNil` | `−200` |
+| `Blind(N)` | **Not allowed in Standard** |
+| Bag penalty | At ≥ 10 cumulative bags: `−100` and reset bags to `0` |
+
+**JJA / JJDD additions:**
+
+| Outcome | Score |
+|---|---|
+| Made `Blind(N)` | `+N × 20` (double regular) |
+| Failed `Blind(N)` | `−N × 20` |
+| **Dime** — team wins exactly 10 tricks combined | `+200` bonus (in addition to regular scoring) |
+| **Boston** — team wins all 13 tricks combined | **Game over**, that team wins regardless of cumulative score |
+
+Notes:
+- Dime applies to *tricks won*, not *bid value*. A team that bid 8 and won 10 still gets the +200 dime bonus (plus the made-bid score and 2 bags).
+- Boston is a hand-level event that *terminates the game*. The scoring function returns a flag indicating "game over via Boston" alongside the hand score.
+- Bag penalties apply uniformly across all variants.
+
+#### Per-bid encoding consideration for training
+
+Each variant of a bid (`Regular(N)`, `Nil`, `BlindNil`, `Blind(N)`) is a distinct training signal. Team Iterate should learn:
+- When to bid Regular vs Nil
+- When to risk a BlindNil (huge variance, double payoff)
+- When to risk a Blind regular (double payoff but min commitment of 6)
+- When the score state encourages aggressive vs conservative bidding
+
+Encoding them as separate cases preserves that signal in the training data — never collapse them into "bid 0" or similar.
 
 ## Cheating Settings
 
@@ -240,6 +283,234 @@ For analysis, every decision and every chat message is annotated with cheat-rela
 
 See the `Decision`, `Communication`, and `Accusation` table definitions below.
 
+## Information Isolation per Seat
+
+**Every prompt sent to a model — for live play, for training, for evaluation — must be built from a `SeatObservation` that contains only the information that seat would know in the actual game.** Other players' hands, other players' private reasoning, and chat messages this seat couldn't hear must be structurally inaccessible.
+
+This is enforced at the *type level*, not by runtime filtering. The `SeatObservation` struct simply doesn't have fields for information a seat shouldn't see — so even a careless future caller cannot leak it by mistake.
+
+### What each seat knows
+
+**Private to this seat:**
+- Their own remaining hand
+- The bids and plays they themselves have made (technically also public, but framed from their perspective)
+
+**Public knowledge (visible to all 4 seats):**
+- The deal structure (everyone knows there are 13 cards per hand, the variant in play, the dealer position)
+- All bids that have been made so far (in turn order)
+- All cards played in the current and past tricks
+- Trick winners (after each trick resolves)
+- Both teams' scores and bags
+- Whether spades is broken
+- Whose turn it is to act
+
+**Filtered by chat audience:**
+- Public chat messages: visible to all 4
+- Partner-channel messages: visible only to the sender and their partner
+- Cross-table whispers: visible only to the sender and the targeted seat
+
+**Never visible to other seats:**
+- Other players' hands
+- Other players' private `reasoning` text (stored in DB for analysis only — never in any `SeatObservation`)
+- Cards still in other players' hands (until played)
+- Future bids (during bidding) or future plays
+
+### `SeatObservation` struct
+
+```rust
+pub struct SeatObservation {
+    // ─── Identity ────────────────────────────────────────
+    pub seat: u8,
+    pub partner_seat: u8,
+
+    // ─── Game configuration (public) ─────────────────────
+    pub variant: Variant,
+    pub house_rules: HouseRules,
+    pub target_score: u16,
+    pub hand_number: u8,
+    pub trick_number: u8,
+    pub dealer: u8,
+
+    // ─── PRIVATE — this seat's hand only ─────────────────
+    pub your_hand: CardSet,
+
+    // ─── PUBLIC — known to everyone ──────────────────────
+    pub bids: [Option<Bid>; 4],            // None for not-yet-bid seats
+    pub team1_score: i16,
+    pub team2_score: i16,
+    pub team1_bags: u8,
+    pub team2_bags: u8,
+    pub completed_tricks: Vec<CompletedTrick>,
+    pub current_trick_plays: Vec<Play>,    // plays in the in-progress trick
+    pub current_turn: u8,
+    pub spades_broken: bool,
+    pub phase: Phase,                      // Bidding | Playing | GameOver
+
+    // ─── FILTERED — chat audible to this seat ────────────
+    pub chat_visible: Vec<CommunicationView>,
+
+    // ─── For this seat's decision ────────────────────────
+    pub legal_actions: LegalActions,       // legal bids or legal plays depending on phase
+}
+
+pub enum LegalActions {
+    Bids(Vec<Bid>),   // valid bids per legal_bids(seat, prior_bids, variant, house_rules)
+    Plays(CardSet),   // valid plays per legal_plays(...)
+    NotMyTurn,        // observer view — no legal actions because it's not this seat's turn
+}
+
+pub struct CommunicationView {
+    pub from_seat: u8,
+    pub timestamp: Timestamp,
+    pub phase: Phase,
+    pub audience: Audience,                // Public | Partner | CrossTable(target_seat)
+    pub text: String,                      // already decompressed
+    // Note: cheat annotations from `Communication` are NOT included.
+    // Whether a message was a lie is hidden from observers — that's the whole point.
+}
+```
+
+**No field for other seats' hands. No field for other seats' reasoning. No field for chat the seat shouldn't hear.** A future module can't leak what isn't representable.
+
+### Construction — pure function
+
+`SeatObservation` is constructed by a single pure function in the encoding crate:
+
+```rust
+// encoding/src/observation.rs (new module)
+
+pub fn seat_observation(
+    deal: [CardSet; 4],                 // private — only deal[seat] is read into observation
+    actions: &[Action],                 // public action sequence so far in this hand
+    bids: [Option<Bid>; 4],             // public bid state
+    completed_tricks: &[CompletedTrick],
+    chat: &[Communication],             // all chat for this game; filtered by audience
+    seat: u8,
+    variant: Variant,
+    house_rules: HouseRules,
+    target_score: u16,
+    hand_number: u8,
+    dealer: u8,
+    scores: (i16, i16, u8, u8),         // team1_score, team2_score, team1_bags, team2_bags
+    spades_broken: bool,
+    phase: Phase,
+) -> SeatObservation
+```
+
+The function:
+1. Computes `your_hand` = `deal[seat]` minus cards already played by `seat` (via replay).
+2. Filters `chat` to messages whose audience includes `seat`.
+3. Computes `legal_actions` based on phase + house rules.
+4. Never references `deal[!seat]` for any output field other than `your_hand`.
+
+### Discipline
+
+- **Every agent prompt is built from a `SeatObservation`.** No exception.
+- **Chat messages are filtered at observation construction time**, never at prompt construction time. By the time chat reaches the prompt builder, it's already audience-correct.
+- **Reasoning rows are never included in `SeatObservation`.** They exist only in the `Reasoning` table for post-hoc analysis. An agent's *own* past reasoning can be reconstructed by the training pipeline by joining `Reasoning` to that seat's `Decision` rows — but it's never sent to *another* agent.
+- **Cheating annotations (`engine_cheat_kind`, `self_reported_cheat`, `engine_detected_lie`) are stored in the database but excluded from `CommunicationView`.** Detecting cheating is the point of the research — leaking the truth into the prompt would defeat it.
+
+### Existing TypeScript code
+
+The current `getObservation(seat)` in `engine/game.ts:61-113` is functionally equivalent and currently correct. It will be replaced by a typed binding to the encoding crate's `seat_observation` function once the module crate is wired in. The discipline propagates: whether the prompt is built in TS or Rust, the type guarantees the same isolation.
+
+## House Rules
+
+Beyond the variant choice (`Standard / JJA / JJDD`) and the cheating policy, some Spades rules vary by house. These are stored per-game in `HouseRules` and persisted as fields on the `Game` table. They are independent of variant — any house rule can apply to any variant.
+
+### Spades-lead policy
+
+**When can a player lead with a spade?**
+
+```rust
+pub enum SpadesLeadPolicy {
+    /// Standard rule: spades cannot be led until they've been "broken"
+    /// (a spade has been played in some trick), OR the leader has only
+    /// spades remaining in hand. Default.
+    MustBeBroken,
+
+    /// Spades can be led at any time from the second trick onward.
+    /// Common in some JJDD house variants.
+    AlwaysAllowed,
+}
+```
+
+**Spades is "broken" the first time a spade is played in any trick** — by leading (when forced because the leader has only spades) or by cutting (when a player has no card of the led suit and uses a spade). Once broken, leading spades is unrestricted. The `spades_broken` flag is game-state, not a setting; it flips automatically during play.
+
+**Interaction with the universal opening rule:** the first trick of every game is led by the lowest club, regardless of `SpadesLeadPolicy`. This setting only affects tricks 2 onward.
+
+**Cutting is always allowed.** If you have no card of the led suit, you can play a spade to cut, regardless of policy. Cutting also breaks spades for future tricks. There is no setting to disable cutting — that's a fundamental Spades mechanic, not a house variation.
+
+### Minimum team bid
+
+**The two partners' bids must sum to at least this many tricks.** Stored as `u8`; `0` disables the constraint.
+
+```rust
+pub minimum_team_bid: u8,    // on HouseRules
+```
+
+#### Per-variant defaults
+
+| Variant | Default `minimum_team_bid` |
+|---|---|
+| Standard | 0 (no constraint) |
+| JJA | 4 |
+| JJDD | 4 |
+
+These are *defaults* — the column on `Game` is per-game, so any individual game can override. Tournaments may pin all games to a chosen value.
+
+#### Mechanics
+
+For computing team totals, **Nil and BlindNil contribute 0 tricks** (they commit to winning zero). So if a player's partner has already bid Nil and the team minimum is 4, that player must bid at least Regular(4) — Nil and BlindNil become unavailable to them.
+
+The constraint applies to the *second* bidder on each team (the first bidder has no partner-bid yet to compare against). Concretely, `legal_bids(seat, prior_bids, variant, house_rules)` filters out:
+- For the first bidder of a team: nothing — all bid kinds available
+- For the second bidder of a team: bids that would leave team total below `minimum_team_bid`
+
+When `minimum_team_bid = 0`, this reduces to "any legal bid." When `minimum_team_bid = 4` and partner bid Nil, the second bidder is restricted to `Regular(4..=13)`.
+
+Double-nil (both partners bidding Nil) is automatically forbidden when `minimum_team_bid > 0`, since `0 + 0 = 0` can't meet any positive minimum.
+
+### Settings struct
+
+```rust
+pub struct HouseRules {
+    pub spades_lead_policy: SpadesLeadPolicy,
+    pub minimum_team_bid: u8,    // 0 = no constraint
+
+    // Future house rules slot in here. Each is independent of variant
+    // and cheating settings, and stored as its own field on Game.
+}
+
+impl HouseRules {
+    /// User-defined defaults per variant.
+    pub const fn default_for(variant: Variant) -> HouseRules {
+        match variant {
+            Variant::Standard => HouseRules {
+                spades_lead_policy: SpadesLeadPolicy::MustBeBroken,
+                minimum_team_bid: 0,
+            },
+            Variant::JJA | Variant::JJDD => HouseRules {
+                spades_lead_policy: SpadesLeadPolicy::MustBeBroken,
+                minimum_team_bid: 4,
+            },
+        }
+    }
+}
+```
+
+### Future house rules (deferred — not blocking)
+
+Likely candidates we haven't built. Adding any of these is a struct-field extension plus the corresponding column on `Game`:
+
+- **Bag-penalty threshold** — bags-per-team that triggers a -100 penalty (default 10)
+- **Bag-penalty amount** — magnitude of the penalty (default -100)
+- **Mercy rule** — auto-loss at score difference ≥ N (e.g., -250)
+- **Card passing** — some variants pass cards between partners at the start of each hand
+- **Misdeal handling** — re-deal on hands of all same color, etc.
+- **Going-over rule** — must land exactly on target score in some variants
+- **Set penalty per bag** — how undertricks are scored
+
 ## Tables
 
 ```rust
@@ -286,6 +557,10 @@ pub struct Game {
     agent_detection_quorum: bool,
     cheat_consequence_kind: u8,           // 0=LogOnly, 1=HandPenalty, 2=GameForfeit
     cheat_consequence_value: i16,         // used when kind=HandPenalty (the penalty amount)
+
+    // ─── House rules (per-game) ──────────────────────
+    spades_lead_policy: u8,               // 0=MustBeBroken, 1=AlwaysAllowed
+    minimum_team_bid: u8,                 // 0 = no constraint; defaults: 0/4/4 for Standard/JJA/JJDD
 }
 
 #[spacetimedb::table(accessor = hand, public)]
@@ -298,7 +573,7 @@ pub struct Hand {
     deal_seat1: u64,
     deal_seat2: u64,
     deal_seat3: u64,
-    bids_packed: u16,                     // 4 seats × 4 bits — see "Bids" section
+    bids_packed: u32,                     // 4 seats × 8 bits — see "Bids" section
     tricks_won_packed: u16,               // 4 seats × 4 bits (max 13 tricks/seat)
     team1_score_delta: i16,
     team2_score_delta: i16,
@@ -406,6 +681,7 @@ spacetime/
       legal.rs      # effective_suit, legal_plays
       hand.rs       # tricks_won packing, hand-level helpers
       replay.rs     # deterministic replay from (deal, actions)
+      observation.rs # SeatObservation + seat_observation() — type-level info isolation
       score.rs      # hand and game scoring (handles nil, blind nil, bags)
   module/           # SpacetimeDB module — added later, depends on `encoding`.
                     # Owns cheating policy enforcement, chat routing, accusation

@@ -5,11 +5,26 @@ function isTrump(card: Card): boolean {
   return card.suit === 'S' || card.suit === 'J'; // Jokers are trumps
 }
 
-export function getLegalPlays(hand: Card[], ledSuit: Suit | null, spadesBroken: boolean): Card[] {
+export function getLegalPlays(
+  hand: Card[],
+  ledSuit: Suit | null,
+  spadesBroken: boolean,
+  forcedOpeningCardId?: string,
+): Card[] {
   // If no suit is led (first to play in the trick)
   if (!ledSuit) {
-    // Cannot lead spades unless broken or only have spades
-    // Jokers count as spades for leading purposes
+    // Universal opening rule: if a forced opening card is in effect (first
+    // trick of the hand), the leader must play exactly that card.
+    if (forcedOpeningCardId) {
+      const opening = hand.find(c => c.id === forcedOpeningCardId);
+      if (opening) return [opening];
+      // Defensive: opener should always have the opening card. If they don't,
+      // the engine selected the wrong leader — fall through to the normal
+      // leading rules so the function stays total.
+    }
+
+    // Cannot lead spades unless broken or only have spades.
+    // Jokers count as spades for leading purposes.
     const hasOnlySpades = hand.every(c => isTrump(c));
     if (!spadesBroken && !hasOnlySpades) {
       return hand.filter(c => !isTrump(c));

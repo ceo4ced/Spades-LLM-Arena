@@ -88,7 +88,12 @@ export class GameEngine {
       const team2Won = this.state.players[1].tricksWon + this.state.players[3].tricksWon;
 
       const legalPlays = this.state.currentTurn === seat
-        ? getLegalPlays(player.hand, this.state.currentTrick.ledSuit, this.state.spadesBroken).map(c => c.id)
+        ? getLegalPlays(
+            player.hand,
+            this.state.currentTrick.ledSuit,
+            this.state.spadesBroken,
+            this.forcedOpeningForCurrentTurn(),
+          ).map(c => c.id)
         : [];
 
       obs.playing_context = {
@@ -121,11 +126,43 @@ export class GameEngine {
 
     if (this.state.players.every(p => p.bid !== null)) {
       this.state.phase = 'playing';
-      this.state.currentTurn = (this.state.dealer + 1) % 4;
+      // Universal opening rule: the player holding the lowest club leads
+      // the first trick. Standard: 2♣. Jokers variant: 3♣ (since 2♣ is
+      // removed from the deck — see dealHand).
+      this.state.currentTurn = this.findOpeningSeat();
     } else {
       this.state.currentTurn = (this.state.currentTurn + 1) % 4;
     }
     return null;
+  }
+
+  /** Find the seat holding the lowest club — that player leads trick 1. */
+  private findOpeningSeat(): number {
+    const opening = this.openingCardId();
+    for (let i = 0; i < 4; i++) {
+      const player = this.state.players[i];
+      if (player.hand.some(c => c.id === opening)) {
+        return i;
+      }
+    }
+    // Defensive fallback: dealer's left. Shouldn't happen with a well-formed deal.
+    return (this.state.dealer + 1) % 4;
+  }
+
+  /** Card id for the lowest-club opener. 2♣ in standard, 3♣ in jokers. */
+  private openingCardId(): string {
+    return this.variant === 'jokers' ? '3C' : '2C';
+  }
+
+  /**
+   * The forced opening card id for the current player's turn, if applicable.
+   * Returns the opener id only when it's the very first card of the hand
+   * (no completed tricks, no plays in the current trick). Otherwise undefined.
+   */
+  private forcedOpeningForCurrentTurn(): string | undefined {
+    const isFirstCardOfHand =
+      this.state.trickHistory.length === 0 && this.state.currentTrick.plays.length === 0;
+    return isFirstCardOfHand ? this.openingCardId() : undefined;
   }
 
   processPlay(seat: number, action: PlayAction): string | null {
@@ -139,7 +176,12 @@ export class GameEngine {
     const hasCard = player.hand.some(c => c.id === card.id);
     if (!hasCard) return 'You do not have this card';
 
-    const legalPlays = getLegalPlays(player.hand, this.state.currentTrick.ledSuit, this.state.spadesBroken);
+    const legalPlays = getLegalPlays(
+      player.hand,
+      this.state.currentTrick.ledSuit,
+      this.state.spadesBroken,
+      this.forcedOpeningForCurrentTurn(),
+    );
     const isLegal = legalPlays.some(c => c.id === card.id);
     if (!isLegal) return 'Illegal play';
 
