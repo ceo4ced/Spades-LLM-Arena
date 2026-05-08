@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Rust build artifacts. Cargo.lock IS committed for reproducible builds;
+# only the target/ output directories are ignored.
+spacetime/target/
+spacetime/module/target/
+spacetime/encoding/target/

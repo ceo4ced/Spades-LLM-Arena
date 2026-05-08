@@ -25,6 +25,7 @@
     "openai": "^6.35.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "spacetimedb": "^2.2.0",
     "vite": "^6.2.0"
   },
   "devDependencies": {

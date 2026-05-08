@@ -1,0 +1,13 @@
+[package]
+name = "spades-module"
+version = "0.1.0"
+edition = "2021"
+description = "SpacetimeDB module for the Spades LLM Arena. Persists game/hand/decision/communication records and exposes reducers for the Rust+TS clients."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+encoding = { path = "../encoding" }
+spacetimedb = "2"
+log = "0.4"

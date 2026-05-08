@@ -14,12 +14,22 @@ export class GameEngine {
   variant: 'standard' | 'jokers';
   lastHandResult: HandResult | null = null;
 
-  constructor(targetScore: number = 500, variant: 'standard' | 'jokers' = 'standard') {
+  constructor(
+    targetScore: number = 500,
+    variant: 'standard' | 'jokers' = 'standard',
+    initialDealer?: number,
+  ) {
     this.variant = variant;
+    // Real Spades cuts for the first dealer; we randomize unless a specific
+    // seat was passed (useful for tests and for orchestrators that want
+    // deterministic games).
+    const dealer = initialDealer !== undefined
+      ? Math.max(0, Math.min(3, Math.floor(initialDealer)))
+      : Math.floor(Math.random() * 4);
     this.state = {
       phase: 'bidding',
-      dealer: 0,
-      currentTurn: 1,
+      dealer,
+      currentTurn: (dealer + 1) % 4,
       players: [
         { seat: 0, hand: [], bid: null, tricksWon: 0, type: 'human', name: 'Player 0' },
         { seat: 1, hand: [], bid: null, tricksWon: 0, type: 'bot', name: 'Player 1' },

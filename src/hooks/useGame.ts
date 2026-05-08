@@ -8,7 +8,8 @@ import { LLMAgent } from '../agents/llm_agent';
 import { OpenRouterAgent } from '../agents/openrouter_agent';
 import { AnthropicAgent } from '../agents/anthropic_agent';
 import { OpenAIAgent } from '../agents/openai_agent';
-import { saveResult } from '../engine/resultsStore';
+import { saveResult, type GameResult } from '../engine/resultsStore';
+import { recordCompleteGame } from '../spacetime-results';
 
 export function useGame() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -68,22 +69,32 @@ export function useGame() {
       const winner = state.teams.team1.score >= state.targetScore ? 1 : 2;
       addLog(`Game Over! Winner: ${winner === 1 ? 'Team 1' : 'Team 2'}`);
 
-      // Auto-save result to leaderboard
+      // Auto-save result to leaderboard (localStorage — synchronous, source of truth for now).
+      const resultPayload: Omit<GameResult, 'id'> = {
+        date: new Date().toISOString(),
+        team1Models: modelConfigRef.current.team1Models,
+        team2Models: modelConfigRef.current.team2Models,
+        team1Score: state.teams.team1.score,
+        team2Score: state.teams.team2.score,
+        team1Bags: state.teams.team1.bags,
+        team2Bags: state.teams.team2.bags,
+        winner: winner as 1 | 2,
+        targetScore: state.targetScore,
+        handsPlayed: state.handNumber,
+      };
       try {
-        saveResult({
-          date: new Date().toISOString(),
-          team1Models: modelConfigRef.current.team1Models,
-          team2Models: modelConfigRef.current.team2Models,
-          team1Score: state.teams.team1.score,
-          team2Score: state.teams.team2.score,
-          team1Bags: state.teams.team1.bags,
-          team2Bags: state.teams.team2.bags,
-          winner: winner as 1 | 2,
-          targetScore: state.targetScore,
-          handsPlayed: state.handNumber,
-        });
+        const saved = saveResult(resultPayload);
         addLog('Result saved to leaderboard.');
-      } catch (e) { console.error('Failed to save result:', e); }
+
+        // Best-effort: also record to SpacetimeDB. Failures are logged, not thrown.
+        // The legacy engine variant is 'standard' | 'jokers'; engine field is the
+        // canonical source. Async — fires off without blocking the UI.
+        recordCompleteGame({ ...saved }, engine.variant).catch((err) => {
+          console.warn('SpacetimeDB record failed (non-fatal):', err);
+        });
+      } catch (e) {
+        console.error('Failed to save result:', e);
+      }
 
       isRunningRef.current = false;
       setGameState({ ...engine.state });

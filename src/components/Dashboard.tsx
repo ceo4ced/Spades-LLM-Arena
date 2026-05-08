@@ -9,6 +9,7 @@ import {
     MatchupRecord,
 } from '../engine/resultsStore';
 import { seedIfEmpty } from '../engine/seedData';
+import { useSpacetimeGameCount } from '../hooks/useSpacetime';
 
 interface DashboardProps {
     onBack: () => void;
@@ -33,6 +34,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack, onPlay, onModelCli
     const matchups = useMemo(() => ready ? getMatchups() : [], [ready]);
     const totalGames = useMemo(() => ready ? getTotalGamesPlayed() : 0, [ready]);
     const tournaments = useMemo(() => ready ? getAllTournaments() : [], [ready]);
+
+    // Live count from SpacetimeDB — re-renders as new games are recorded.
+    const spacetimeGameCount = useSpacetimeGameCount();
 
     // Derived stats
     const topWinner = leaderboard.length > 0 ? leaderboard[0] : null;
@@ -127,6 +131,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack, onPlay, onModelCli
                             <span className="text-4xl font-bold text-white">{totalGames}</span>
                             <span className="text-2xl mb-1">♠</span>
                         </div>
+                        {spacetimeGameCount > 0 && (
+                            <div className="text-[10px] text-green-400/70 mt-1 flex items-center gap-1">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                                {spacetimeGameCount} live · SpacetimeDB
+                            </div>
+                        )}
                     </motion.div>
 
                     {/* Today's Champion */}
