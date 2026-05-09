@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { getModelResults, getLeaderboard, getMatchups } from '../engine/resultsStore';
+import {
+    useSpacetimeLeaderboard,
+    useSpacetimeMatchups,
+    useSpacetimeModelGames,
+} from '../hooks/useSpacetime';
 
 interface ModelDetailProps {
     modelName: string;
@@ -9,9 +13,9 @@ interface ModelDetailProps {
 }
 
 export const ModelDetail: React.FC<ModelDetailProps> = ({ modelName, onBack, onPlay }) => {
-    const results = useMemo(() => getModelResults(modelName), [modelName]);
-    const leaderboard = useMemo(() => getLeaderboard(), []);
-    const matchups = useMemo(() => getMatchups(), []);
+    const results = useSpacetimeModelGames(modelName);
+    const leaderboard = useSpacetimeLeaderboard();
+    const matchups = useSpacetimeMatchups();
 
     const stats = leaderboard.find(s => s.model === modelName);
     const winRate = stats && stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0;

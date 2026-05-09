@@ -11,7 +11,12 @@
  */
 
 import { useEffect, useState } from 'react';
-import { getConnection } from '../spacetime-client';
+import {
+  getConnection,
+  getStatus,
+  subscribeStatus,
+  type ConnectionStatus,
+} from '../spacetime-client';
 import type { Game, Model } from '../spacetime-bindings/types';
 import type { MatchupRecord } from '../engine/resultsStore';
 
@@ -247,4 +252,69 @@ export function useSpacetimeMatchups(): MatchupRecord[] {
   }
 
   return Array.from(map.values());
+}
+
+/**
+ * Live connection status. Re-renders the consumer on connect, disconnect,
+ * or connect-error events.
+ *
+ * Note: this hook does not *initiate* a connection. The connection is built
+ * lazily on first call to `getConnection()` from any other hook (typically
+ * `useGames` / `useModels` mounted by Dashboard or a write path). To make
+ * status visible site-wide regardless of which screen is active, mount the
+ * `ConnectionIndicator` in `App.tsx` and call `getConnection()` once on
+ * mount there.
+ */
+export function useSpacetimeStatus(): ConnectionStatus {
+  const [status, setStatus] = useState<ConnectionStatus>(() => getStatus());
+  useEffect(() => {
+    return subscribeStatus(() => setStatus(getStatus()));
+  }, []);
+  return status;
+}
+
+/**
+ * Per-game minimal shape consumed by ModelDetail's "Recent Games" panel.
+ * Mirrors the fields it actually renders — not every column from the
+ * `game` row.
+ */
+export interface SpacetimeModelGame {
+  team1Models: string[];
+  team2Models: string[];
+  team1Score: number;
+  team2Score: number;
+  winner: 1 | 2;
+}
+
+/**
+ * All games where `modelName` played, on either team, in oldest-first order
+ * (so callers can `.slice(-N).reverse()` for "recent N").
+ */
+export function useSpacetimeModelGames(modelName: string): SpacetimeModelGame[] {
+  const games = useGames();
+  const models = useModels();
+
+  const nameById = new Map<number, string>();
+  for (const m of models) nameById.set(m.id, m.name);
+
+  const result: SpacetimeModelGame[] = [];
+  for (const g of games) {
+    const team1Models = [
+      nameById.get(g.team1Seat0ModelId) ?? '',
+      nameById.get(g.team1Seat2ModelId) ?? '',
+    ];
+    const team2Models = [
+      nameById.get(g.team2Seat1ModelId) ?? '',
+      nameById.get(g.team2Seat3ModelId) ?? '',
+    ];
+    if (![...team1Models, ...team2Models].includes(modelName)) continue;
+    result.push({
+      team1Models,
+      team2Models,
+      team1Score: g.team1Score,
+      team2Score: g.team2Score,
+      winner: (g.winnerTeam === 1 ? 1 : 2) as 1 | 2,
+    });
+  }
+  return result;
 }

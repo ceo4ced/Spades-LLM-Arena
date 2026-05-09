@@ -12,6 +12,7 @@ import { ChatPanel, ChatMessage } from './components/ChatPanel';
 import { Dashboard } from './components/Dashboard';
 import { ModelDetail } from './components/ModelDetail';
 import { Tournament } from './components/Tournament';
+import { ConnectionIndicator } from './components/ConnectionIndicator';
 import { GameConfig } from './engine/types';
 
 type Screen = 'splash' | 'setup' | 'game' | 'dashboard' | 'model_detail' | 'tournament';
@@ -114,58 +115,71 @@ export default function App() {
 
   // Splash screen
   if (screen === 'splash') {
-    return <SplashScreen onComplete={() => setScreen('setup')} />;
+    return <><SplashScreen onComplete={() => setScreen('setup')} /><ConnectionIndicator /></>;
   }
 
   // Dashboard
   if (screen === 'dashboard') {
     return (
-      <Dashboard
-        onBack={() => setScreen('setup')}
-        onPlay={() => setScreen('setup')}
-        onModelClick={(name) => { setSelectedModel(name); setScreen('model_detail'); }}
-      />
+      <>
+        <Dashboard
+          onBack={() => setScreen('setup')}
+          onPlay={() => setScreen('setup')}
+          onModelClick={(name) => { setSelectedModel(name); setScreen('model_detail'); }}
+        />
+        <ConnectionIndicator />
+      </>
     );
   }
 
   // Model Detail subpage
   if (screen === 'model_detail') {
     return (
-      <ModelDetail
-        modelName={selectedModel}
-        onBack={() => setScreen('dashboard')}
-        onPlay={() => setScreen('setup')}
-      />
+      <>
+        <ModelDetail
+          modelName={selectedModel}
+          onBack={() => setScreen('dashboard')}
+          onPlay={() => setScreen('setup')}
+        />
+        <ConnectionIndicator />
+      </>
     );
   }
 
   // Tournament wireframe
   if (screen === 'tournament') {
-    return <Tournament onBack={() => setScreen('setup')} />;
+    return <><Tournament onBack={() => setScreen('setup')} /><ConnectionIndicator /></>;
   }
 
   // Setup / menu screen
   if (screen === 'setup') {
     return (
-      <GameSetup
-        onStart={handleStart}
-        onLeaderboard={() => setScreen('dashboard')}
-        onTournament={() => setScreen('tournament')}
-      />
+      <>
+        <GameSetup
+          onStart={handleStart}
+          onLeaderboard={() => setScreen('dashboard')}
+          onTournament={() => setScreen('tournament')}
+        />
+        <ConnectionIndicator />
+      </>
     );
   }
 
   // Loading state
   if (!gameState) {
     return (
-      <div className="flex items-center justify-center h-screen bg-green-900 text-white">
-        <div className="text-2xl font-bold animate-pulse">Loading Spades Engine...</div>
-      </div>
+      <>
+        <div className="flex items-center justify-center h-screen bg-green-900 text-white">
+          <div className="text-2xl font-bold animate-pulse">Loading Spades Engine...</div>
+        </div>
+        <ConnectionIndicator />
+      </>
     );
   }
 
   // Game board — responsive layout: board fills available space, chat on right
   return (
+    <>
     <div className="flex w-full h-screen overflow-hidden relative">
       {/* Game Board — always fills available space */}
       <div className="flex-1 min-w-0 h-full">
@@ -211,5 +225,7 @@ export default function App() {
         />
       )}
     </div>
+    <ConnectionIndicator />
+    </>
   );
 }
