@@ -10,7 +10,11 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "stream": "tsx stream/orchestrator.ts",
-    "stream:live": "YOUTUBE=1 tsx stream/orchestrator.ts"
+    "stream:live": "YOUTUBE=1 tsx stream/orchestrator.ts",
+    "spacetime:list": "spacetime list --server maincloud",
+    "spacetime:logs": "spacetime logs --server maincloud spades-arena --num-lines 50",
+    "spacetime:publish": "spacetime publish --server maincloud --bin-path spacetime/target/wasm32-unknown-unknown/release/spades_module.wasm spades-arena",
+    "spacetime:generate": "spacetime generate --lang typescript --out-dir src/spacetime-bindings --project-path spacetime/module"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

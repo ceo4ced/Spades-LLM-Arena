@@ -1,14 +1,36 @@
-# Spacetime workspace — toolchain setup
+# Spacetime workspace — setup
 
 Two crates live here:
 - `encoding/` — pure Rust, zero dependencies. Builds with any Rust 1.80+.
 - `module/` — SpacetimeDB module. Requires the SpacetimeDB toolchain.
 
-## Required for `module/`
+## Default deployment: SpacetimeDB Maincloud
+
+The `spades-arena` module is published to SpacetimeDB Maincloud. The React
+client points there out of the box — `npm install && npm run dev` is enough
+for normal development. **Most contributors never need to run any of the
+commands below.**
+
+The convenience scripts in `package.json` wrap the common module-side flows:
+
+```bash
+npm run spacetime:list          # list databases on maincloud
+npm run spacetime:logs          # tail spades-arena logs from maincloud
+npm run spacetime:publish       # publish the prebuilt wasm to maincloud
+npm run spacetime:generate      # regenerate src/spacetime-bindings/ from the module
+```
+
+`spacetime:publish` requires you to be logged in to maincloud first:
+
+```bash
+spacetime login                 # opens spacetimedb.com in a browser
+```
+
+## Building the module from source
 
 The `spacetimedb` crate (and its sub-crates `spacetimedb-bindings-macro`,
-`spacetimedb-lib`, etc.) require **Rust 1.90 or newer**. This project's
-Homebrew Rust is 1.85, so the module won't compile without an upgrade.
+`spacetimedb-lib`, etc.) require **Rust 1.90 or newer**. Homebrew Rust 1.85
+is too old, so the module won't compile without an upgrade.
 
 ### One-time setup
 
@@ -48,33 +70,45 @@ spacetime --version
 
 Both should succeed without errors.
 
-### Build and deploy the module
+### Build and publish
+
+After making module changes, rebuild and re-publish to maincloud:
 
 ```bash
 cd spacetime/module
 spacetime build
-# To deploy to a local instance:
-spacetime publish --project-path . spades-arena
-# To deploy to maincloud (requires login):
-spacetime publish --project-path . --identity-token <token> spades-arena
+spacetime publish --server maincloud spades-arena
 ```
 
-### Generate TypeScript bindings
+Then regenerate TypeScript bindings so the React client sees any schema
+changes:
 
-After the module builds:
 ```bash
-spacetime generate --lang typescript --out-dir ../../src/spacetime-bindings --project-path .
+npm run spacetime:generate
 ```
 
-This emits TypeScript types and reducer-call helpers under `src/spacetime-bindings/`
-that the React app uses.
+## Optional: self-hosted local instance
 
-## Why this isn't bundled
+For offline development you can run a local SpacetimeDB and point the React
+client at it.
 
-The Homebrew Rust 1.85 currently in use can't compile the spacetimedb crates
-(>=1.12 require Rust 1.90). The `encoding/` crate is unaffected and continues
-to build cleanly with `cargo check -p encoding`.
+1. **Run the standalone server:**
+   ```bash
+   spacetime start
+   ```
+   Listens on `http://localhost:3000` by default.
 
-The `module/` source is in place and syntactically correct — it just needs a
-newer toolchain to compile. After installing rustup per above, no source
-changes should be needed.
+2. **Publish your module to it:**
+   ```bash
+   spacetime publish --server local spades-arena
+   ```
+
+3. **Override the React client's connection URI** in `.env.local`:
+   ```
+   VITE_SPACETIME_URI="http://localhost:3000"
+   VITE_SPACETIME_MODULE="spades-arena"
+   ```
+
+4. **Restart `npm run dev`.** The client will connect to your local instance
+   instead of maincloud. Your maincloud-stored game history will not appear;
+   the local instance starts empty.

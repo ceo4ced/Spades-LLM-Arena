@@ -5,8 +5,9 @@
  * return the same instance. The auth token is persisted in localStorage so
  * the same identity is used across reloads.
  *
- * Configure via env vars (Vite `VITE_*`):
- *   - VITE_SPACETIME_URI    (default: http://localhost:3000)
+ * Defaults connect to SpacetimeDB Maincloud. Override via env vars (Vite
+ * `VITE_*`) — for example to point at a self-hosted local instance:
+ *   - VITE_SPACETIME_URI    (default: https://maincloud.spacetimedb.com)
  *   - VITE_SPACETIME_MODULE (default: spades-arena)
  *
  * Usage:
@@ -18,7 +19,7 @@
 import { DbConnection, type ErrorContext } from './spacetime-bindings';
 import type { Identity } from 'spacetimedb';
 
-const DEFAULT_URI = 'http://localhost:3000';
+const DEFAULT_URI = 'https://maincloud.spacetimedb.com';
 const DEFAULT_MODULE = 'spades-arena';
 const TOKEN_KEY = 'spacetime_auth_token';
 
