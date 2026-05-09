@@ -1,0 +1,83 @@
+- generic [ref=e95]:
+  - generic [ref=e97]:
+    - generic [ref=e98]:
+      - generic [ref=e99]:
+        - generic [ref=e100]: Team 1 (Bot 1 (Team 1) + Bot 3 (Team 1))
+        - generic [ref=e101]: "Score: 0"
+        - generic [ref=e102]: "Bags: 0"
+      - generic [ref=e103]: "Target: 250"
+      - generic [ref=e104]:
+        - generic [ref=e105]: Team 2 (Bot 2 (Team 2) + Bot 4 (Team 2))
+        - generic [ref=e106]: "Score: 0"
+        - generic [ref=e107]: "Bags: 0"
+    - generic [ref=e108]:
+      - generic [ref=e110]:
+        - generic [ref=e111]: Bot 2 (Team 2)
+        - generic [ref=e112]: "Bid: - | Won: 0"
+        - generic [ref=e113]: 🃏 13 cards
+      - generic [ref=e114]:
+        - generic [ref=e116]:
+          - generic [ref=e117]: Bot 3 (Team 1)
+          - generic [ref=e118]: "Bid: 5 | Won: 0"
+          - generic [ref=e119]: 🃏 13 cards
+        - generic [ref=e124]:
+          - generic [ref=e125]: Bot 1 (Team 1)
+          - generic [ref=e126]: "Bid: - | Won: 0"
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e129]: A♥
+              - text: ","
+            - generic [ref=e130]:
+              - generic [ref=e131]: 10♥
+              - text: ","
+            - generic [ref=e132]:
+              - generic [ref=e133]: 7♥
+              - text: ","
+            - generic [ref=e134]:
+              - generic [ref=e135]: 2♥
+              - text: ","
+            - generic [ref=e136]:
+              - generic [ref=e137]: J♣
+              - text: ","
+            - generic [ref=e138]:
+              - generic [ref=e139]: 8♣
+              - text: ","
+            - generic [ref=e140]:
+              - generic [ref=e141]: 7♣
+              - text: ","
+            - generic [ref=e142]:
+              - generic [ref=e143]: 6♣
+              - text: ","
+            - generic [ref=e144]:
+              - generic [ref=e145]: 5♣
+              - text: ","
+            - generic [ref=e146]:
+              - generic [ref=e147]: A♦
+              - text: ","
+            - generic [ref=e148]:
+              - generic [ref=e149]: J♦
+              - text: ","
+            - generic [ref=e150]:
+              - generic [ref=e151]: 7♦
+              - text: ","
+            - generic [ref=e153]: 3♦
+      - generic [ref=e155]:
+        - generic [ref=e156]: Bot 4 (Team 2)
+        - generic [ref=e157]: "Bid: - | Won: 0"
+        - generic [ref=e158]: 🃏 13 cards
+  - generic [ref=e160]:
+    - generic [ref=e161]:
+      - heading "♠ Arena Chat" [level=2] [ref=e162]
+      - paragraph [ref=e163]: Viewers monitor for illegal communication
+    - generic [ref=e165]:
+      - generic [ref=e166]:
+        - generic [ref=e168]: Bot 3 (Team 1)
+        - generic [ref=e169]: T1
+      - generic [ref=e170]: I'll bid 5. 🤔
+    - heading "Game Log" [level=3] [ref=e172]
+    - generic [ref=e173]:
+      - generic [ref=e174]: Game initialized. Starting...
+      - generic [ref=e175]: Bot 2 bids 5
+    - generic [ref=e176]:
+      - generic [ref=e179]: LIVE
+      - generic [ref=e180]: ♠ Spades LLM Arena
