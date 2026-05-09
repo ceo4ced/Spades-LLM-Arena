@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react';
 import { getConnection } from '../spacetime-client';
 import type { Game, Model } from '../spacetime-bindings/types';
+import type { MatchupRecord } from '../engine/resultsStore';
 
 // ─── Module-state caches ────────────────────────────────────────────────
 
@@ -129,7 +130,7 @@ export function useModels(): Model[] {
 // ─── Derived views ──────────────────────────────────────────────────────
 
 export interface SpacetimeModelStats {
-  modelName: string;
+  model: string;
   wins: number;
   losses: number;
   totalPoints: number;
@@ -153,7 +154,7 @@ export function useSpacetimeLeaderboard(): SpacetimeModelStats[] {
   const ensure = (name: string) => {
     if (!stats.has(name)) {
       stats.set(name, {
-        modelName: name,
+        model: name,
         wins: 0,
         losses: 0,
         totalPoints: 0,
@@ -204,4 +205,46 @@ export function useSpacetimeLeaderboard(): SpacetimeModelStats[] {
 export function useSpacetimeGameCount(): number {
   const games = useGames();
   return games.length;
+}
+
+/**
+ * Build head-to-head records between model pairs from the live `game` table.
+ * Same shape as `resultsStore.getMatchups()`.
+ */
+export function useSpacetimeMatchups(): MatchupRecord[] {
+  const games = useGames();
+  const models = useModels();
+
+  const nameById = new Map<number, string>();
+  for (const m of models) nameById.set(m.id, m.name);
+
+  const key = (a: string, b: string) => [a, b].sort().join('|||');
+  const map = new Map<string, MatchupRecord>();
+
+  for (const g of games) {
+    const t1Names = [
+      nameById.get(g.team1Seat0ModelId),
+      nameById.get(g.team1Seat2ModelId),
+    ].filter((n): n is string => Boolean(n));
+    const t2Names = [
+      nameById.get(g.team2Seat1ModelId),
+      nameById.get(g.team2Seat3ModelId),
+    ].filter((n): n is string => Boolean(n));
+
+    for (const m1 of t1Names) {
+      for (const m2 of t2Names) {
+        const k = key(m1, m2);
+        if (!map.has(k)) {
+          const [sorted1, sorted2] = [m1, m2].sort();
+          map.set(k, { model1: sorted1, model2: sorted2, model1Wins: 0, model2Wins: 0 });
+        }
+        const rec = map.get(k)!;
+        const winnerModels = g.winnerTeam === 1 ? t1Names : t2Names;
+        if (winnerModels.includes(rec.model1)) rec.model1Wins++;
+        else rec.model2Wins++;
+      }
+    }
+  }
+
+  return Array.from(map.values());
 }

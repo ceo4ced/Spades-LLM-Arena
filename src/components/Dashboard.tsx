@@ -1,15 +1,11 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
+import type { ModelStats, MatchupRecord, TournamentResult } from '../engine/resultsStore';
 import {
-    getLeaderboard,
-    getMatchups,
-    getTotalGamesPlayed,
-    getAllTournaments,
-    ModelStats,
-    MatchupRecord,
-} from '../engine/resultsStore';
-import { seedIfEmpty } from '../engine/seedData';
-import { useSpacetimeGameCount } from '../hooks/useSpacetime';
+    useSpacetimeGameCount,
+    useSpacetimeLeaderboard,
+    useSpacetimeMatchups,
+} from '../hooks/useSpacetime';
 
 interface DashboardProps {
     onBack: () => void;
@@ -26,17 +22,13 @@ const RANK_BG: Record<number, string> = {
 };
 
 export const Dashboard: React.FC<DashboardProps> = ({ onBack, onPlay, onModelClick }) => {
-    // Seed placeholder data if none exists
-    const [ready, setReady] = useState(false);
-    useEffect(() => { seedIfEmpty(); setReady(true); }, []);
-
-    const leaderboard = useMemo(() => ready ? getLeaderboard() : [], [ready]);
-    const matchups = useMemo(() => ready ? getMatchups() : [], [ready]);
-    const totalGames = useMemo(() => ready ? getTotalGamesPlayed() : 0, [ready]);
-    const tournaments = useMemo(() => ready ? getAllTournaments() : [], [ready]);
-
-    // Live count from SpacetimeDB — re-renders as new games are recorded.
-    const spacetimeGameCount = useSpacetimeGameCount();
+    // Live data from SpacetimeDB — re-renders as new games are recorded.
+    const leaderboard: ModelStats[] = useSpacetimeLeaderboard();
+    const matchups: MatchupRecord[] = useSpacetimeMatchups();
+    const totalGames = useSpacetimeGameCount();
+    // Tournaments aren't stored in the SpacetimeDB schema yet — empty for now.
+    const tournaments: TournamentResult[] = [];
+    const spacetimeGameCount = totalGames;
 
     // Derived stats
     const topWinner = leaderboard.length > 0 ? leaderboard[0] : null;
