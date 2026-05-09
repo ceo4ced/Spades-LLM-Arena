@@ -1,18 +1,29 @@
 import { Agent } from './base';
 import { Observation, BidAction, PlayAction } from '../engine/types';
 import { getSystemPrompt, getObservationPrompt } from './prompts';
+import { RandomAgent } from './random_agent';
+
+class RateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
+}
 
 export class OpenRouterAgent implements Agent {
   name: string;
   private apiKey: string;
   private model: string;
   private maxRetries: number;
+  private rateLimited: boolean = false;
+  private fallback: RandomAgent;
 
-  constructor(name: string, apiKey: string, model: string = 'openai/gpt-4o', maxRetries: number = 3) {
+  constructor(name: string, apiKey: string, model: string = 'openai/gpt-oss-120b:free', maxRetries: number = 3) {
     this.name = name;
     this.apiKey = apiKey;
     this.model = model;
     this.maxRetries = maxRetries;
+    this.fallback = new RandomAgent(`${name} [random fallback]`);
   }
 
   async callOpenRouter(systemPrompt: string, userPrompt: string): Promise<any> {
@@ -35,6 +46,12 @@ export class OpenRouterAgent implements Agent {
       })
     });
 
+    if (response.status === 429) {
+      this.rateLimited = true;
+      const errorText = await response.text();
+      throw new RateLimitError(`OpenRouter rate limited (${this.model}): ${errorText}`);
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`OpenRouter API Error: ${response.status} - ${errorText}`);
@@ -46,6 +63,8 @@ export class OpenRouterAgent implements Agent {
   }
 
   async bid(observation: Observation): Promise<BidAction> {
+    if (this.rateLimited) return this.fallback.bid(observation);
+
     const systemPrompt = getSystemPrompt(
       observation.seat,
       observation.seat % 2 === 0 ? 1 : 2,
@@ -56,13 +75,17 @@ export class OpenRouterAgent implements Agent {
     for (let attempt = 0; attempt < this.maxRetries; attempt++) {
       try {
         const parsed = await this.callOpenRouter(systemPrompt, userPrompt);
-        
+
         if (parsed.action !== 'bid' || typeof parsed.value !== 'number' || parsed.value < 0 || parsed.value > 13) {
           throw new Error('Invalid bid format or value');
         }
 
         return parsed as BidAction;
       } catch (error) {
+        if (error instanceof RateLimitError) {
+          console.warn(`OpenRouter Agent ${this.name}: rate limited — switching to RandomAgent for the rest of this game.`);
+          return this.fallback.bid(observation);
+        }
         console.error(`OpenRouter Agent ${this.name} bid attempt ${attempt + 1} failed:`, error);
         if (attempt === this.maxRetries - 1) {
           return { action: 'bid', value: 1, reasoning: 'Fallback bid due to errors' };
@@ -73,6 +96,8 @@ export class OpenRouterAgent implements Agent {
   }
 
   async play(observation: Observation): Promise<PlayAction> {
+    if (this.rateLimited) return this.fallback.play(observation);
+
     const systemPrompt = getSystemPrompt(
       observation.seat,
       observation.seat % 2 === 0 ? 1 : 2,
@@ -96,6 +121,10 @@ export class OpenRouterAgent implements Agent {
 
         return parsed as PlayAction;
       } catch (error) {
+        if (error instanceof RateLimitError) {
+          console.warn(`OpenRouter Agent ${this.name}: rate limited — switching to RandomAgent for the rest of this game.`);
+          return this.fallback.play(observation);
+        }
         console.error(`OpenRouter Agent ${this.name} play attempt ${attempt + 1} failed:`, error);
         if (attempt === this.maxRetries - 1) {
           const legalPlays = observation.playing_context?.legal_plays || [];
@@ -107,5 +136,8 @@ export class OpenRouterAgent implements Agent {
     return { action: 'play', card: legalPlays[0], reasoning: 'Fallback play due to errors' };
   }
 
-  reset(): void {}
+  reset(): void {
+    this.rateLimited = false;
+    this.fallback.reset();
+  }
 }

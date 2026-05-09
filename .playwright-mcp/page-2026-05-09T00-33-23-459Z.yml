@@ -1,0 +1,106 @@
+- generic [ref=e13]:
+  - button "Settings" [ref=e14]:
+    - img [ref=e15]
+  - generic [ref=e19]:
+    - generic [ref=e20]: Auto-start in
+    - generic [ref=e22]: 60s
+  - heading "Spades AI Benchmark" [level=1] [ref=e25]
+  - paragraph [ref=e26]: Configure teams and AI models to compete.
+  - generic [ref=e27]:
+    - generic [ref=e28]:
+      - heading "Game Rules" [level=2] [ref=e29]
+      - generic [ref=e30]:
+        - generic [ref=e31]: Variant
+        - generic [ref=e32]:
+          - button "Standard (52 Cards) Classic Spades. Ace is high." [ref=e33]:
+            - text: Standard (52 Cards)
+            - generic [ref=e34]: Classic Spades. Ace is high.
+          - button "Jokers (Big/Little) Includes Big & Little Jokers." [ref=e35]:
+            - text: Jokers (Big/Little)
+            - generic [ref=e36]: Includes Big & Little Jokers.
+      - generic [ref=e37]:
+        - generic [ref=e38]: Target Score
+        - generic [ref=e39]:
+          - button "250" [ref=e40]
+          - button "500" [ref=e41]
+          - button "1000" [ref=e42]
+      - generic [ref=e43]:
+        - paragraph [ref=e44]:
+          - strong [ref=e45]: "Heuristic:"
+          - text: Rule-based logic. Fast and consistent baseline.
+        - paragraph [ref=e46]:
+          - strong [ref=e47]: "Random:"
+          - text: Plays completely randomly. Useful for testing.
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - heading "Team 1" [level=2] [ref=e50]
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: Player 1 (South)
+            - generic [ref=e54]: bot
+          - textbox "Name" [ref=e55]: Bot 1 (Team 1)
+          - combobox [ref=e56]:
+            - option "Bot" [selected]
+            - option "Human"
+          - combobox [ref=e57]:
+            - option "Heuristic (Rule-based)" [selected]
+            - option "Random (Baseline)"
+            - option "Anthropic (Claude)"
+            - option "OpenAI"
+            - option "Gemini Flash"
+            - option "Gemini Pro"
+            - option "OpenRouter (multi-model)"
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - generic [ref=e60]: Player 3 (North)
+            - generic [ref=e61]: bot
+          - textbox "Name" [ref=e62]: Bot 3 (Team 1)
+          - combobox [ref=e63]:
+            - option "Bot" [selected]
+            - option "Human"
+          - combobox [ref=e64]:
+            - option "Heuristic (Rule-based)" [selected]
+            - option "Random (Baseline)"
+            - option "Anthropic (Claude)"
+            - option "OpenAI"
+            - option "Gemini Flash"
+            - option "Gemini Pro"
+            - option "OpenRouter (multi-model)"
+      - generic [ref=e65]:
+        - heading "Team 2" [level=2] [ref=e66]
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - generic [ref=e69]: Player 2 (West)
+            - generic [ref=e70]: bot
+          - textbox "Name" [ref=e71]: Bot 2 (Team 2)
+          - combobox [ref=e72]:
+            - option "Bot" [selected]
+            - option "Human"
+          - combobox [ref=e73]:
+            - option "Heuristic (Rule-based)" [selected]
+            - option "Random (Baseline)"
+            - option "Anthropic (Claude)"
+            - option "OpenAI"
+            - option "Gemini Flash"
+            - option "Gemini Pro"
+            - option "OpenRouter (multi-model)"
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - generic [ref=e76]: Player 4 (East)
+            - generic [ref=e77]: bot
+          - textbox "Name" [ref=e78]: Bot 4 (Team 2)
+          - combobox [ref=e79]:
+            - option "Bot" [selected]
+            - option "Human"
+          - combobox [ref=e80]:
+            - option "Heuristic (Rule-based)" [selected]
+            - option "Random (Baseline)"
+            - option "Anthropic (Claude)"
+            - option "OpenAI"
+            - option "Gemini Flash"
+            - option "Gemini Pro"
+            - option "OpenRouter (multi-model)"
+  - generic [ref=e81]:
+    - button "Start Match" [ref=e82]
+    - button "🏆 Leaderboard" [ref=e83]
+    - button "♠ Tournament" [ref=e84]

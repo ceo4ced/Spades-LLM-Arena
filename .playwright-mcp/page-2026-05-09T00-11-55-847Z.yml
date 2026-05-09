@@ -1,0 +1,9 @@
+- generic [ref=e3]:
+  - generic [ref=e5]: ♠
+  - generic [ref=e6]: ♥
+  - generic [ref=e7]:
+    - generic [ref=e8]: ♠
+    - heading "Spades LLM ARENA" [level=1] [ref=e9]:
+      - text: Spades
+      - text: LLM ARENA
+    - paragraph [ref=e10]: AI vs AI • Card Intelligence Benchmark

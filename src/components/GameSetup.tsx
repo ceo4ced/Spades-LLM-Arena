@@ -3,6 +3,7 @@ import { GameConfig } from '../engine/types';
 import { motion } from 'motion/react';
 import { SettingsModal } from './SettingsModal';
 import { Settings as SettingsIcon } from 'lucide-react';
+import { useOpenRouterModels } from '../hooks/useOpenRouterModels';
 
 interface GameSetupProps {
   onStart: (config: GameConfig) => void;
@@ -10,7 +11,11 @@ interface GameSetupProps {
   onTournament?: () => void;
 }
 
-const OPENROUTER_MODELS = [
+// Default free model: free tier, supports json_object response format (required by the agent).
+const DEFAULT_OPENROUTER_MODEL_ID = 'openai/gpt-oss-120b:free';
+
+// Fallback list used only if the live OpenRouter /models fetch fails.
+const OPENROUTER_FALLBACK_MODELS = [
   { id: 'openai/gpt-4o', name: 'GPT-4o' },
   { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
   { id: 'google/gemini-pro-1.5', name: 'Gemini Pro 1.5' },
@@ -43,11 +48,16 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
   // Team 1: Seat 0 & 2
   // Team 2: Seat 1 & 3
   const [players, setPlayers] = useState<GameConfig['players']>([
-    { seat: 0, type: 'bot', model: 'heuristic', name: 'Bot 1 (Team 1)' },
-    { seat: 1, type: 'bot', model: 'heuristic', name: 'Bot 2 (Team 2)' },
-    { seat: 2, type: 'bot', model: 'heuristic', name: 'Bot 3 (Team 1)' },
-    { seat: 3, type: 'bot', model: 'heuristic', name: 'Bot 4 (Team 2)' },
+    { seat: 0, type: 'bot', model: 'openrouter', name: 'Bot 1 (Team 1)' },
+    { seat: 1, type: 'bot', model: 'openrouter', name: 'Bot 2 (Team 2)' },
+    { seat: 2, type: 'bot', model: 'openrouter', name: 'Bot 3 (Team 1)' },
+    { seat: 3, type: 'bot', model: 'openrouter', name: 'Bot 4 (Team 2)' },
   ]);
+
+  const { models: liveOpenRouterModels, loading: openRouterLoading, error: openRouterError } =
+    useOpenRouterModels();
+  const openRouterModels =
+    liveOpenRouterModels.length > 0 ? liveOpenRouterModels : OPENROUTER_FALLBACK_MODELS;
 
   const updatePlayer = (seat: number, field: keyof typeof players[0], value: any) => {
     const newPlayers = [...players];
@@ -66,22 +76,20 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasAutoStarted = useRef(false);
 
-  // Available models for auto-start random pairings
-  const AUTO_MODELS: GameConfig['players'][0]['model'][] = ['heuristic', 'random', 'heuristic', 'random'];
-  const AUTO_NAMES = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
-
   const autoStart = useCallback(() => {
     if (hasAutoStarted.current) return;
     hasAutoStarted.current = true;
     // TODO: Check for tournament schedule here — if tournament exists, defer to it
+    // Auto-start uses the default free OpenRouter model so unattended games
+    // don't burn paid token credits.
     const autoConfig: GameConfig = {
       variant: 'jokers',
       targetScore: 250,
       players: [
-        { seat: 0, type: 'bot', model: 'heuristic', name: 'Alpha (T1)' },
-        { seat: 1, type: 'bot', model: 'random', name: 'Bravo (T2)' },
-        { seat: 2, type: 'bot', model: 'heuristic', name: 'Charlie (T1)' },
-        { seat: 3, type: 'bot', model: 'random', name: 'Delta (T2)' },
+        { seat: 0, type: 'bot', model: 'openrouter', openrouter_model: DEFAULT_OPENROUTER_MODEL_ID, name: 'Alpha (T1)' },
+        { seat: 1, type: 'bot', model: 'openrouter', openrouter_model: DEFAULT_OPENROUTER_MODEL_ID, name: 'Bravo (T2)' },
+        { seat: 2, type: 'bot', model: 'openrouter', openrouter_model: DEFAULT_OPENROUTER_MODEL_ID, name: 'Charlie (T1)' },
+        { seat: 3, type: 'bot', model: 'openrouter', openrouter_model: DEFAULT_OPENROUTER_MODEL_ID, name: 'Delta (T2)' },
       ],
     };
     onStart(autoConfig);
@@ -161,15 +169,24 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
             </select>
 
             {player.model === 'openrouter' && (
-              <select
-                value={player.openrouter_model || OPENROUTER_MODELS[0].id}
-                onChange={(e) => updatePlayer(seat, 'openrouter_model', e.target.value)}
-                className="bg-white border border-gray-300 rounded px-2 py-1 text-xs"
-              >
-                {OPENROUTER_MODELS.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={player.openrouter_model || DEFAULT_OPENROUTER_MODEL_ID}
+                  onChange={(e) => updatePlayer(seat, 'openrouter_model', e.target.value)}
+                  className="bg-white border border-gray-300 rounded px-2 py-1 text-xs"
+                >
+                  {openRouterModels.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+                <div className="text-[10px] text-gray-500">
+                  {openRouterLoading
+                    ? 'Loading OpenRouter models…'
+                    : openRouterError
+                    ? `Live fetch failed (${openRouterError}); showing curated fallback`
+                    : `${openRouterModels.length} models available via OpenRouter`}
+                </div>
+              </>
             )}
 
             {player.model === 'anthropic' && (
@@ -288,6 +305,7 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
             </div>
 
             <div className="pt-4 border-t text-sm text-gray-600 space-y-2">
+              <p><strong>OpenRouter (default):</strong> Pick from 300+ models. Auto-start uses a free OpenRouter model to avoid burning paid credits.</p>
               <p><strong>Heuristic:</strong> Rule-based logic. Fast and consistent baseline.</p>
               <p><strong>Random:</strong> Plays completely randomly. Useful for testing.</p>
             </div>
