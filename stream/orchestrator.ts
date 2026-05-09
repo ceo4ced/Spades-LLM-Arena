@@ -4,7 +4,7 @@
  * This script automates the entire Spades Arena lifecycle for 24/7 unattended
  * broadcasting. It:
  *   1. Optionally starts an Xvfb virtual display (Linux servers only)
- *   2. Boots the Vite dev server on localhost:3000
+ *   2. Boots the Vite dev server on localhost:5273
  *   3. Launches Playwright Chromium pointed at the game
  *   4. Auto-configures and starts a 4-bot match
  *   5. Monitors for game completion and auto-restarts new matches
@@ -20,7 +20,7 @@
  *   HEADLESS          - Run Chromium in headless mode (default: false)
  *   YOUTUBE_STREAM_KEY - YouTube RTMP stream key (enables FFmpeg)
  *   DISPLAY           - X11 display for Xvfb (default: :99)
- *   GAME_URL          - URL to the game (default: http://localhost:3000)
+ *   GAME_URL          - URL to the game (default: http://localhost:5273)
  *   VARIANT           - Game variant: 'standard' | 'jokers' (default: jokers)
  *   TARGET_SCORE      - Target score: 250 | 500 | 1000 (default: 250)
  *   RESTART_DELAY_MS  - Delay before restarting a match (default: 15000)
@@ -47,7 +47,7 @@ const PREVIEW_HEIGHT = 1000;
 
 const CONFIG = {
     headless: process.env.HEADLESS === '1',
-    gameUrl: process.env.GAME_URL || 'http://localhost:3000',
+    gameUrl: process.env.GAME_URL || 'http://localhost:5273',
     variant: (process.env.VARIANT as 'standard' | 'jokers') || 'jokers',
     targetScore: parseInt(process.env.TARGET_SCORE || '250', 10),
     restartDelayMs: parseInt(process.env.RESTART_DELAY_MS || '15000', 10),
