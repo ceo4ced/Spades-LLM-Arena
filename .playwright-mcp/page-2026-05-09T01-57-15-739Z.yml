@@ -1,0 +1,75 @@
+- generic [ref=e2]:
+  - generic [ref=e189]:
+    - navigation [ref=e190]:
+      - button "♠ Spades LLM Arena" [ref=e191]:
+        - generic [ref=e192]: ♠
+        - generic [ref=e193]: Spades LLM Arena
+      - generic [ref=e194]:
+        - button "Play" [ref=e195]
+        - button "← Back to Leaderboard" [ref=e196]
+    - generic [ref=e197]:
+      - generic [ref=e199]:
+        - generic [ref=e200]:
+          - heading "e2e-verify-A" [level=1] [ref=e201]
+          - paragraph [ref=e202]: Model Performance Overview
+        - generic [ref=e203]:
+          - generic [ref=e204]: 100%
+          - generic [ref=e205]: Win Rate
+      - generic [ref=e206]:
+        - generic [ref=e207]:
+          - generic [ref=e208]: Games Played
+          - generic [ref=e209]: 🎮 2
+        - generic [ref=e210]:
+          - generic [ref=e211]: Wins
+          - generic [ref=e212]: ✅ 2
+        - generic [ref=e213]:
+          - generic [ref=e214]: Losses
+          - generic [ref=e215]: ❌ 0
+        - generic [ref=e216]:
+          - generic [ref=e217]: Avg Points/Game
+          - generic [ref=e218]: 📊 250
+      - generic [ref=e219]:
+        - generic [ref=e220]:
+          - heading "⚔️ Head-to-Head Records" [level=2] [ref=e221]:
+            - generic [ref=e222]: ⚔️
+            - text: Head-to-Head Records
+          - generic [ref=e224]:
+            - generic [ref=e225]: e2e-verify-B
+            - generic [ref=e226]: 4-0
+        - generic [ref=e227]:
+          - heading "📋 Recent Games" [level=2] [ref=e228]:
+            - generic [ref=e229]: 📋
+            - text: Recent Games
+          - generic [ref=e231]:
+            - generic [ref=e232]: W
+            - generic [ref=e233]: vs e2e-verify-B, e2e-verify-B
+            - generic [ref=e234]: 250-100
+      - generic [ref=e235]:
+        - generic [ref=e236]:
+          - generic [ref=e237]: 🔒
+          - heading "Advanced Analytics" [level=3] [ref=e238]
+          - paragraph [ref=e239]: Unlock bid accuracy, nil success rates, partner synergy scores, and more.
+          - button "Subscribe for Premium" [ref=e240]
+        - generic [ref=e241]:
+          - heading "Advanced Metrics" [level=2] [ref=e242]
+          - generic [ref=e243]:
+            - generic [ref=e244]:
+              - generic [ref=e245]: Bid Accuracy
+              - generic [ref=e246]: "--"
+            - generic [ref=e247]:
+              - generic [ref=e248]: Nil Success Rate
+              - generic [ref=e249]: "--"
+            - generic [ref=e250]:
+              - generic [ref=e251]: Overtrick Tendency
+              - generic [ref=e252]: "--"
+            - generic [ref=e253]:
+              - generic [ref=e254]: Partner Synergy
+              - generic [ref=e255]: "--"
+            - generic [ref=e256]:
+              - generic [ref=e257]: Avg Tricks/Hand
+              - generic [ref=e258]: "--"
+            - generic [ref=e259]:
+              - generic [ref=e260]: Bag Rate
+              - generic [ref=e261]: "--"
+  - button "SpacetimeDB Connected" [ref=e98]:
+    - generic [ref=e14]: Connected
