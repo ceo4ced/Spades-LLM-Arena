@@ -26,6 +26,8 @@ export interface GameConfig {
     openai_model?: string;
     name: string;
   }[];
+  /** Optional. Defaults to STRICT_CHEATING_POLICY when omitted. */
+  cheatingPolicy?: CheatingPolicy;
 }
 
 export interface PlayerState {
@@ -112,4 +114,64 @@ export interface PlayAction {
   action: 'play';
   card: string;
   reasoning: string;
+}
+
+// ─── Cheating policy ────────────────────────────────────────────────────
+//
+// Mirrors the per-game `cheating policy` block in the SpacetimeDB schema
+// (spacetime/module/src/lib.rs:77-95). The engine only enforces fields that
+// affect bid/play resolution. Higher-level fields (chat_policy,
+// prompt_cheating_mode, prompt_for_detection, announce_detected_cheats,
+// agent_detection_quorum) belong to chat/agent layers and are pass-through
+// here.
+//
+// See Research/NOTES.md for the SARC mapping: this is the engine's
+// Pre-Action Gate + Action-Time Monitor; consequences are the Escalation
+// Router; cheatEvents are the Post-Action Auditor trace.
+
+export type SpadesLeadPolicy = 'MustBeBroken' | 'AlwaysAllowed';
+
+export type CheatConsequenceKind = 'LogOnly' | 'HandPenalty' | 'GameForfeit';
+
+export interface CheatConsequence {
+  kind: CheatConsequenceKind;
+  /** Points deducted from the offending team's hand score when kind === 'HandPenalty'. */
+  value: number;
+}
+
+export interface CheatingPolicy {
+  /** Accept off-suit plays when the player could have followed suit. */
+  allowRenege: boolean;
+  spadesLeadPolicy: SpadesLeadPolicy;
+  /** Minimum total team bid. 0 disables the floor. */
+  minimumTeamBid: number;
+  consequence: CheatConsequence;
+}
+
+/** Strict no-cheating defaults — matches the spacetime-results default block. */
+export const STRICT_CHEATING_POLICY: CheatingPolicy = {
+  allowRenege: false,
+  spadesLeadPolicy: 'MustBeBroken',
+  minimumTeamBid: 0,
+  consequence: { kind: 'LogOnly', value: 0 },
+};
+
+export type EngineCheatKind =
+  | 'Renege'
+  | 'IllegalLead'
+  | 'BidBelowMinimum';
+
+export interface CheatEvent {
+  handNumber: number;
+  /** 1-based trick number within the hand. Bids use 0. */
+  trickNumber: number;
+  seat: number;
+  kind: EngineCheatKind;
+  /** The attempted card id (plays) or bid value (bids). */
+  attempted: { card?: string; bid?: number };
+  consequence: CheatConsequenceKind;
+  /** Points actually deducted (HandPenalty) or 0. */
+  penaltyApplied: number;
+  /** True iff this cheat ended the game (GameForfeit). */
+  endedGame: boolean;
 }

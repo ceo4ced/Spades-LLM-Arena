@@ -1,4 +1,15 @@
-import { GameState, PlayerState, Card, Trick, Observation, BidAction, PlayAction } from './types';
+import {
+  GameState,
+  PlayerState,
+  Card,
+  Trick,
+  Observation,
+  BidAction,
+  PlayAction,
+  CheatingPolicy,
+  CheatEvent,
+  STRICT_CHEATING_POLICY,
+} from './types';
 import { createDeck, shuffle, parseCard } from './deck';
 import { getLegalPlays, determineTrickWinner } from './rules';
 import { calculateTeamScore } from './scoring';
@@ -13,13 +24,20 @@ export class GameEngine {
   state: GameState;
   variant: 'standard' | 'jokers';
   lastHandResult: HandResult | null = null;
+  policy: CheatingPolicy;
+  /** Every engine-detected cheat across the game, in chronological order. */
+  cheatEvents: CheatEvent[] = [];
+  /** Per-hand penalty buffer applied at scoreHand time. Indexed by team (1 | 2). */
+  private pendingPenalties: { team1: number; team2: number } = { team1: 0, team2: 0 };
 
   constructor(
     targetScore: number = 500,
     variant: 'standard' | 'jokers' = 'standard',
     initialDealer?: number,
+    policy: CheatingPolicy = STRICT_CHEATING_POLICY,
   ) {
     this.variant = variant;
+    this.policy = policy;
     // Real Spades cuts for the first dealer; we randomize unless a specific
     // seat was passed (useful for tests and for orchestrators that want
     // deterministic games).
@@ -103,6 +121,7 @@ export class GameEngine {
             this.state.currentTrick.ledSuit,
             this.state.spadesBroken,
             this.forcedOpeningForCurrentTurn(),
+            this.policy.spadesLeadPolicy,
           ).map(c => c.id)
         : [];
 
@@ -191,9 +210,40 @@ export class GameEngine {
       this.state.currentTrick.ledSuit,
       this.state.spadesBroken,
       this.forcedOpeningForCurrentTurn(),
+      this.policy.spadesLeadPolicy,
     );
     const isLegal = legalPlays.some(c => c.id === card.id);
-    if (!isLegal) return 'Illegal play';
+    if (!isLegal) {
+      // Classify: is this a renege (had follow-suit, chose to deviate) or an
+      // illegal lead (off-suit pre-broken-spades)? Both reduce to "could have
+      // played a strictly legal card and didn't"; we name them separately
+      // because they correspond to distinct constraints in the SARC mapping
+      // (Action-Time Monitor for renege, Pre-Action Gate for the lead).
+      const isLead = this.state.currentTrick.plays.length === 0;
+      const cheatKind = isLead ? 'IllegalLead' : 'Renege';
+
+      // Forced-opening violation is never a soft "renege" — the universal
+      // opening rule isn't optional.
+      const isForcedOpeningViolation =
+        this.forcedOpeningForCurrentTurn() !== undefined;
+
+      if (!this.policy.allowRenege || isForcedOpeningViolation) {
+        return 'Illegal play';
+      }
+
+      // Allowed renege: record event, apply consequence, then accept the play.
+      const ended = this.recordAndApplyCheat({
+        handNumber: this.state.handNumber,
+        trickNumber: this.state.currentTrick.number,
+        seat,
+        kind: cheatKind,
+        attempted: { card: card.id },
+      });
+      if (ended) {
+        // GameForfeit short-circuits — don't mutate hand state further.
+        return null;
+      }
+    }
 
     // Apply play
     player.hand = player.hand.filter(c => c.id !== card.id);
@@ -245,8 +295,42 @@ export class GameEngine {
     const t1Won = this.state.players[0].tricksWon + this.state.players[2].tricksWon;
     const t2Won = this.state.players[1].tricksWon + this.state.players[3].tricksWon;
 
+    // Minimum-team-bid enforcement: flag (and optionally penalize) teams that
+    // bid below the floor. Attribution goes to the second bidder on the team
+    // since they're the one with information about partner's bid.
+    if (this.policy.minimumTeamBid > 0) {
+      if (t1Bid < this.policy.minimumTeamBid) {
+        this.recordAndApplyCheat({
+          handNumber: this.state.handNumber,
+          trickNumber: 0,
+          seat: 2,
+          kind: 'BidBelowMinimum',
+          attempted: { bid: t1Bid },
+        });
+      }
+      if (t2Bid < this.policy.minimumTeamBid) {
+        this.recordAndApplyCheat({
+          handNumber: this.state.handNumber,
+          trickNumber: 0,
+          seat: 3,
+          kind: 'BidBelowMinimum',
+          attempted: { bid: t2Bid },
+        });
+      }
+    }
+
     const t1 = calculateTeamScore(this.state.players[0], this.state.players[2], this.state.teams.team1);
     const t2 = calculateTeamScore(this.state.players[1], this.state.players[3], this.state.teams.team2);
+
+    // Apply any pending HandPenalty deductions accumulated this hand.
+    if (this.pendingPenalties.team1 !== 0) {
+      t1.score -= this.pendingPenalties.team1;
+    }
+    if (this.pendingPenalties.team2 !== 0) {
+      t2.score -= this.pendingPenalties.team2;
+    }
+    this.pendingPenalties = { team1: 0, team2: 0 };
+
     this.state.teams.team1 = t1;
     this.state.teams.team2 = t2;
 
@@ -273,5 +357,61 @@ export class GameEngine {
       this.state.handNumber++;
       this.dealHand();
     }
+  }
+
+  // ─── Cheat-handling (SARC: Post-Action Auditor + Escalation Router) ───
+
+  /** Team membership: seats 0/2 = team1, seats 1/3 = team2. */
+  private teamOfSeat(seat: number): 1 | 2 {
+    return seat % 2 === 0 ? 1 : 2;
+  }
+
+  /**
+   * Record a cheat event and apply its consequence. Returns true iff the
+   * consequence ended the game (GameForfeit).
+   */
+  private recordAndApplyCheat(
+    base: Omit<CheatEvent, 'consequence' | 'penaltyApplied' | 'endedGame'>,
+  ): boolean {
+    const consequence = this.policy.consequence;
+    let penaltyApplied = 0;
+    let endedGame = false;
+
+    if (consequence.kind === 'HandPenalty' && consequence.value > 0) {
+      const team = this.teamOfSeat(base.seat);
+      this.pendingPenalties[team === 1 ? 'team1' : 'team2'] += consequence.value;
+      penaltyApplied = consequence.value;
+    } else if (consequence.kind === 'GameForfeit') {
+      const offendingTeam = this.teamOfSeat(base.seat);
+      const opponentTeam = offendingTeam === 1 ? 2 : 1;
+      // Award the win to the opposing team by floor-flooring their score to
+      // target and the offending team to 0. The runner / hooks key off
+      // phase === 'game_over' and pick winner by max score, so this is
+      // sufficient signal — no separate "winner_team" field on state.
+      if (opponentTeam === 1) {
+        this.state.teams.team1.score = this.state.targetScore;
+        this.state.teams.team2.score = Math.min(
+          this.state.teams.team2.score,
+          this.state.targetScore - 1,
+        );
+      } else {
+        this.state.teams.team2.score = this.state.targetScore;
+        this.state.teams.team1.score = Math.min(
+          this.state.teams.team1.score,
+          this.state.targetScore - 1,
+        );
+      }
+      this.state.phase = 'game_over';
+      endedGame = true;
+    }
+    // LogOnly: no scoring effect, only the event record.
+
+    this.cheatEvents.push({
+      ...base,
+      consequence: consequence.kind,
+      penaltyApplied,
+      endedGame,
+    });
+    return endedGame;
   }
 }

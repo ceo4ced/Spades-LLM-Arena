@@ -86,10 +86,17 @@ export function useGame() {
         const saved = saveResult(resultPayload);
         addLog('Result saved to leaderboard.');
 
+        if (engine.cheatEvents.length > 0) {
+          const summary = engine.cheatEvents
+            .map((e) => `${e.kind}@seat${e.seat}/h${e.handNumber}t${e.trickNumber} → ${e.consequence}${e.penaltyApplied ? ` (-${e.penaltyApplied})` : ''}${e.endedGame ? ' [forfeit]' : ''}`)
+            .join('; ');
+          addLog(`Engine-detected cheats: ${engine.cheatEvents.length} — ${summary}`);
+        }
+
         // Best-effort: also record to SpacetimeDB. Failures are logged, not thrown.
         // The legacy engine variant is 'standard' | 'jokers'; engine field is the
         // canonical source. Async — fires off without blocking the UI.
-        recordCompleteGame({ ...saved }, engine.variant).catch((err) => {
+        recordCompleteGame({ ...saved }, engine.variant, engine.policy).catch((err) => {
           console.warn('SpacetimeDB record failed (non-fatal):', err);
         });
       } catch (e) {
@@ -214,7 +221,12 @@ export function useGame() {
     loopIdRef.current += 1;
     const currentLoopId = loopIdRef.current;
 
-    const engine = new GameEngine(config.targetScore, config.variant);
+    const engine = new GameEngine(
+      config.targetScore,
+      config.variant,
+      undefined,
+      config.cheatingPolicy,
+    );
     engineRef.current = engine;
 
     // Update player names and types in engine state
