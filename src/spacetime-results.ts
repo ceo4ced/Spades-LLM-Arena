@@ -149,16 +149,17 @@ function variantToCode(variant: LegacyVariant): number {
  * Record a finished game to SpacetimeDB. Idempotent w.r.t. model registration
  * (re-running with the same names won't create duplicate model rows).
  *
- * Pass the actual `CheatingPolicy` the game was played under. Defaults to
- * `STRICT_CHEATING_POLICY` when omitted, matching the engine default.
+ * Pass the actual `CheatingPolicy` and `rngSeed` the game was played under.
+ * Policy defaults to `STRICT_CHEATING_POLICY`; seed defaults to `0n` only as a
+ * legacy fallback (the engine assigns a real seed to every game).
  *
- * `schema_version = 1`, `rng_seed = 0n` (engine doesn't currently seed).
- * Best-effort: failures are logged, not thrown.
+ * `schema_version = 1`. Best-effort: failures are logged, not thrown.
  */
 export async function recordCompleteGame(
   result: GameResult,
   variant: LegacyVariant,
   policy: CheatingPolicy = STRICT_CHEATING_POLICY,
+  rngSeed: bigint = 0n,
 ): Promise<void> {
   if (result.team1Models.length < 2 || result.team2Models.length < 2) {
     throw new Error('GameResult must have 2 models per team');
@@ -188,7 +189,7 @@ export async function recordCompleteGame(
       team1Bags: result.team1Bags,
       team2Bags: result.team2Bags,
       winnerTeam: result.winner,
-      rngSeed: 0n,
+      rngSeed,
       // Real policy values from the engine.
       allowRenege: policy.allowRenege,
       chatPolicy: 1, // PublicOnly — chat layer not yet engine-enforced.

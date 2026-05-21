@@ -96,7 +96,7 @@ export function useGame() {
         // Best-effort: also record to SpacetimeDB. Failures are logged, not thrown.
         // The legacy engine variant is 'standard' | 'jokers'; engine field is the
         // canonical source. Async — fires off without blocking the UI.
-        recordCompleteGame({ ...saved }, engine.variant, engine.policy).catch((err) => {
+        recordCompleteGame({ ...saved }, engine.variant, engine.policy, engine.rngSeed).catch((err) => {
           console.warn('SpacetimeDB record failed (non-fatal):', err);
         });
       } catch (e) {
@@ -226,6 +226,7 @@ export function useGame() {
       config.variant,
       undefined,
       config.cheatingPolicy,
+      config.rngSeed,
     );
     engineRef.current = engine;
 
@@ -288,7 +289,10 @@ export function useGame() {
     };
 
     setGameState({ ...engine.state });
-    setLogs(['Game initialized. Starting...']);
+    setLogs([
+      'Game initialized. Starting...',
+      `Seed: ${engine.rngSeed.toString()} (re-use for an identical deal)`,
+    ]);
     setIsPaused(false);
 
     isRunningRef.current = true;

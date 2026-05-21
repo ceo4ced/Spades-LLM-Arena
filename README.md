@@ -144,6 +144,11 @@ Tests run via `npx vitest run`.
   violations are appended to `engine.cheatEvents` and the actual policy is
   persisted with each game row. Covered by `src/engine/game.cheating.test.ts`.
   See `Research/NOTES.md` for the SARC mapping.
+- **Seeded deals (reproducibility)** — `GameEngine` now uses a splitmix64
+  RNG seeded from a 64-bit value. The seed is exposed (`engine.rngSeed`),
+  logged on game start, and persisted in `Game.rng_seed`. Pass
+  `GameConfig.rngSeed` to replay a specific deal. Covered by
+  `src/engine/rng.test.ts`.
 
 ## What's left to do (known gaps)
 

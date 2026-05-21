@@ -13,6 +13,7 @@ import {
 import { createDeck, shuffle, parseCard } from './deck';
 import { getLegalPlays, determineTrickWinner } from './rules';
 import { calculateTeamScore } from './scoring';
+import { seededRng, generateRandomSeed } from './rng';
 
 export interface HandResult {
   team1: { bid: number; won: number; pointsEarned: number; bagsEarned: number; totalScore: number; totalBags: number };
@@ -27,6 +28,9 @@ export class GameEngine {
   policy: CheatingPolicy;
   /** Every engine-detected cheat across the game, in chronological order. */
   cheatEvents: CheatEvent[] = [];
+  /** 64-bit seed for this game's deal RNG. Persisted with the game record. */
+  rngSeed: bigint;
+  private rng: () => number;
   /** Per-hand penalty buffer applied at scoreHand time. Indexed by team (1 | 2). */
   private pendingPenalties: { team1: number; team2: number } = { team1: 0, team2: 0 };
 
@@ -35,15 +39,17 @@ export class GameEngine {
     variant: 'standard' | 'jokers' = 'standard',
     initialDealer?: number,
     policy: CheatingPolicy = STRICT_CHEATING_POLICY,
+    rngSeed?: bigint,
   ) {
     this.variant = variant;
     this.policy = policy;
-    // Real Spades cuts for the first dealer; we randomize unless a specific
-    // seat was passed (useful for tests and for orchestrators that want
-    // deterministic games).
+    this.rngSeed = rngSeed ?? generateRandomSeed();
+    this.rng = seededRng(this.rngSeed);
+    // Real Spades cuts for the first dealer; we draw from the seeded RNG
+    // unless a specific seat was passed. Same seed → same dealer.
     const dealer = initialDealer !== undefined
       ? Math.max(0, Math.min(3, Math.floor(initialDealer)))
-      : Math.floor(Math.random() * 4);
+      : Math.floor(this.rng() * 4);
     this.state = {
       phase: 'bidding',
       dealer,
@@ -68,7 +74,7 @@ export class GameEngine {
   }
 
   dealHand() {
-    const deck = shuffle(createDeck(this.variant));
+    const deck = shuffle(createDeck(this.variant), this.rng);
     const cardsPerPlayer = this.variant === 'jokers' ? 13 : 13;
     // Wait, 54 cards / 4 = 13.5. 
     // Standard Spades with Jokers: Remove 2C and 2D -> 52 cards.

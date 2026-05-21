@@ -28,6 +28,8 @@ export interface GameConfig {
   }[];
   /** Optional. Defaults to STRICT_CHEATING_POLICY when omitted. */
   cheatingPolicy?: CheatingPolicy;
+  /** Optional 64-bit seed for the deal RNG. Omitted → engine generates one. */
+  rngSeed?: bigint;
 }
 
 export interface PlayerState {
