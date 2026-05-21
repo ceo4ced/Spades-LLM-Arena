@@ -9,6 +9,7 @@ interface GameSetupProps {
   onStart: (config: GameConfig) => void;
   onLeaderboard?: () => void;
   onTournament?: () => void;
+  onDocs?: () => void;
 }
 
 // Default free model: free tier, supports json_object response format (required by the agent).
@@ -85,7 +86,7 @@ const CHEATING_PRESETS: { id: string; label: string; description: string; policy
   },
 ];
 
-export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, onTournament }) => {
+export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, onTournament, onDocs }) => {
   const [variant, setVariant] = useState<'standard' | 'jokers'>('standard');
   const [targetScore, setTargetScore] = useState<number>(500);
   const [cheatingPresetId, setCheatingPresetId] = useState<string>('strict');
@@ -417,6 +418,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
               className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
             >
               ♠ Tournament
+            </button>
+          )}
+          {onDocs && (
+            <button
+              onClick={onDocs}
+              className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
+            >
+              📖 Docs
             </button>
           )}
         </div>

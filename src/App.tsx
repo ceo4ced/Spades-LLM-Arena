@@ -13,9 +13,10 @@ import { Dashboard } from './components/Dashboard';
 import { ModelDetail } from './components/ModelDetail';
 import { Tournament } from './components/Tournament';
 import { ConnectionIndicator } from './components/ConnectionIndicator';
+import { DocsApp } from './docs/DocsApp';
 import { GameConfig } from './engine/types';
 
-type Screen = 'splash' | 'setup' | 'game' | 'dashboard' | 'model_detail' | 'tournament';
+type Screen = 'splash' | 'setup' | 'game' | 'dashboard' | 'model_detail' | 'tournament' | 'docs';
 
 export default function App() {
   const { gameState, logs, isHumanTurn, isPaused, initGame, humanAction, togglePause, quitGame } = useGame();
@@ -151,6 +152,11 @@ export default function App() {
     return <><Tournament onBack={() => setScreen('setup')} /><ConnectionIndicator /></>;
   }
 
+  // Documentation
+  if (screen === 'docs') {
+    return <><DocsApp onBack={() => setScreen('setup')} /><ConnectionIndicator /></>;
+  }
+
   // Setup / menu screen
   if (screen === 'setup') {
     return (
@@ -159,6 +165,7 @@ export default function App() {
           onStart={handleStart}
           onLeaderboard={() => setScreen('dashboard')}
           onTournament={() => setScreen('tournament')}
+          onDocs={() => setScreen('docs')}
         />
         <ConnectionIndicator />
       </>
