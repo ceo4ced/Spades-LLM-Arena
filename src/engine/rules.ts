@@ -1,4 +1,4 @@
-import { Card, Suit } from './types';
+import { Card, Suit, SpadesLeadPolicy } from './types';
 import { getCardValue } from './deck';
 
 function isTrump(card: Card): boolean {
@@ -10,6 +10,7 @@ export function getLegalPlays(
   ledSuit: Suit | null,
   spadesBroken: boolean,
   forcedOpeningCardId?: string,
+  spadesLeadPolicy: SpadesLeadPolicy = 'MustBeBroken',
 ): Card[] {
   // If no suit is led (first to play in the trick)
   if (!ledSuit) {
@@ -23,10 +24,14 @@ export function getLegalPlays(
       // leading rules so the function stays total.
     }
 
-    // Cannot lead spades unless broken or only have spades.
-    // Jokers count as spades for leading purposes.
+    // Cannot lead spades unless broken or only have spades, unless the
+    // policy explicitly allows it (house rule).
     const hasOnlySpades = hand.every(c => isTrump(c));
-    if (!spadesBroken && !hasOnlySpades) {
+    if (
+      spadesLeadPolicy === 'MustBeBroken' &&
+      !spadesBroken &&
+      !hasOnlySpades
+    ) {
       return hand.filter(c => !isTrump(c));
     }
     return [...hand];

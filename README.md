@@ -137,6 +137,18 @@ Tests run via `npx vitest run`.
   rate-limited endpoint. Covered by `src/agents/openrouter_agent.test.ts`.
 - **Streaming orchestrator URL fixed** — `stream/orchestrator.ts` now points
   at the new Vite port (`:5273`). (`commit 558bb69`)
+- **Cheating-mode enforcement** — the engine now honors the per-game
+  `CheatingPolicy` (`allow_renege`, `spades_lead_policy`, `minimum_team_bid`,
+  `cheat_consequence_*`). Four house-rule presets (Strict / Permissive
+  log-only / Penalty / Forfeit) selectable from `GameSetup`. Detected
+  violations are appended to `engine.cheatEvents` and the actual policy is
+  persisted with each game row. Covered by `src/engine/game.cheating.test.ts`.
+  See `Research/NOTES.md` for the SARC mapping.
+- **Seeded deals (reproducibility)** — `GameEngine` now uses a splitmix64
+  RNG seeded from a 64-bit value. The seed is exposed (`engine.rngSeed`),
+  logged on game start, and persisted in `Game.rng_seed`. Pass
+  `GameConfig.rngSeed` to replay a specific deal. Covered by
+  `src/engine/rng.test.ts`.
 
 ## What's left to do (known gaps)
 
@@ -166,10 +178,15 @@ The next logical pieces, in order of how much they unblock:
    cleanup once `ModelDetail` is migrated.
 3. **Tournament backend.** The schema field exists but no reducer or query
    path uses it. Wire up tournament creation + the Dashboard panel.
-4. **Cheating-mode enforcement.** The module schema already carries
-   `allow_renege`, `chat_policy`, `prompt_cheating_mode`, `cheat_consequence_*`
-   and related fields with strict-no-cheating defaults. The engine doesn't
-   currently honor them — once it does, the existing fields start mattering.
+4. **Per-decision cheat annotations.** `engine.cheatEvents` is populated and
+   the policy is persisted on the game row, but individual violations aren't
+   yet written to the `Decision.engine_cheat_kind` column. Once they are,
+   per-model renege rates become a one-query dashboard tile.
+5. **Chat & prompt-cheating layers.** The schema's `chat_policy` and
+   `prompt_cheating_mode` fields are still inert — no chat is wired in, and
+   the engine shows the same observation to every agent regardless of
+   `prompt_cheating_mode`. These layers sit on top of the engine
+   enforcement that now exists.
 
 This list reflects only what already exists in the code and was discussed
 in the working sessions. It is not a product roadmap.

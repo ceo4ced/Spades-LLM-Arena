@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
+    "docs:build": "tsx scripts/build-docs.ts",
     "stream": "tsx stream/orchestrator.ts",
     "stream:live": "YOUTUBE=1 tsx stream/orchestrator.ts",
     "spacetime:list": "spacetime list --server maincloud",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameConfig } from '../engine/types';
+import { GameConfig, CheatingPolicy, STRICT_CHEATING_POLICY } from '../engine/types';
 import { motion } from 'motion/react';
 import { SettingsModal } from './SettingsModal';
 import { Settings as SettingsIcon } from 'lucide-react';
@@ -9,6 +9,7 @@ interface GameSetupProps {
   onStart: (config: GameConfig) => void;
   onLeaderboard?: () => void;
   onTournament?: () => void;
+  onDocs?: () => void;
 }
 
 // Default free model: free tier, supports json_object response format (required by the agent).
@@ -39,9 +40,56 @@ const OPENAI_MODELS = [
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
 ];
 
-export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, onTournament }) => {
+// House-rule / cheating-policy presets. Strict is the default and matches the
+// SpacetimeDB schema's strict-no-cheating defaults. The other presets exercise
+// the engine's runtime enforcement so the leaderboard records real policy
+// variance, not just one configuration.
+const CHEATING_PRESETS: { id: string; label: string; description: string; policy: CheatingPolicy }[] = [
+  {
+    id: 'strict',
+    label: 'Strict',
+    description: 'No renege. Must-be-broken spades. Reneges are rejected.',
+    policy: STRICT_CHEATING_POLICY,
+  },
+  {
+    id: 'permissive',
+    label: 'Permissive (log only)',
+    description: 'Renege allowed and logged. Spades still must be broken.',
+    policy: {
+      allowRenege: true,
+      spadesLeadPolicy: 'MustBeBroken',
+      minimumTeamBid: 0,
+      consequence: { kind: 'LogOnly', value: 0 },
+    },
+  },
+  {
+    id: 'penalty',
+    label: 'Penalty (-50 per renege)',
+    description: 'Renege allowed but costs the offending team 50 points that hand.',
+    policy: {
+      allowRenege: true,
+      spadesLeadPolicy: 'MustBeBroken',
+      minimumTeamBid: 0,
+      consequence: { kind: 'HandPenalty', value: 50 },
+    },
+  },
+  {
+    id: 'forfeit',
+    label: 'Forfeit on renege',
+    description: 'First renege ends the game; opposing team wins.',
+    policy: {
+      allowRenege: true,
+      spadesLeadPolicy: 'MustBeBroken',
+      minimumTeamBid: 0,
+      consequence: { kind: 'GameForfeit', value: 0 },
+    },
+  },
+];
+
+export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, onTournament, onDocs }) => {
   const [variant, setVariant] = useState<'standard' | 'jokers'>('standard');
   const [targetScore, setTargetScore] = useState<number>(500);
+  const [cheatingPresetId, setCheatingPresetId] = useState<string>('strict');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Players organized by Team
@@ -66,7 +114,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
   };
 
   const handleStart = () => {
-    onStart({ variant, players, targetScore });
+    const preset = CHEATING_PRESETS.find((p) => p.id === cheatingPresetId) ?? CHEATING_PRESETS[0];
+    onStart({ variant, players, targetScore, cheatingPolicy: preset.policy });
   };
 
   // ─── Auto-start countdown (60s idle) ─────────────────
@@ -304,6 +353,25 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">House Rules</label>
+              <div className="flex flex-col gap-2">
+                {CHEATING_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setCheatingPresetId(preset.id)}
+                    className={`py-2 px-3 rounded-lg border-2 text-left transition-all ${cheatingPresetId === preset.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      }`}
+                  >
+                    <div className="text-sm">{preset.label}</div>
+                    <div className="text-[11px] font-normal opacity-75">{preset.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="pt-4 border-t text-sm text-gray-600 space-y-2">
               <p><strong>OpenRouter (default):</strong> Pick from 300+ models. Auto-start uses a free OpenRouter model to avoid burning paid credits.</p>
               <p><strong>Heuristic:</strong> Rule-based logic. Fast and consistent baseline.</p>
@@ -350,6 +418,14 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
               className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
             >
               ♠ Tournament
+            </button>
+          )}
+          {onDocs && (
+            <button
+              onClick={onDocs}
+              className="px-8 py-4 bg-gray-800 text-white text-xl font-bold rounded-xl shadow-lg hover:bg-gray-700 transform hover:scale-105 transition-all border border-gray-600"
+            >
+              📖 Docs
             </button>
           )}
         </div>
