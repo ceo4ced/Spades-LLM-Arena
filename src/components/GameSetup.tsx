@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameConfig, CheatingPolicy, STRICT_CHEATING_POLICY } from '../engine/types';
+import { GameConfig, CheatingPolicy, ChatPolicy, PromptCheatingMode, STRICT_CHEATING_POLICY } from '../engine/types';
 import { motion } from 'motion/react';
 import { SettingsModal } from './SettingsModal';
 import { Settings as SettingsIcon } from 'lucide-react';
@@ -60,6 +60,8 @@ const CHEATING_PRESETS: { id: string; label: string; description: string; policy
       spadesLeadPolicy: 'MustBeBroken',
       minimumTeamBid: 0,
       consequence: { kind: 'LogOnly', value: 0 },
+      chatPolicy: 'None',
+      promptCheatingMode: 'Silent',
     },
   },
   {
@@ -71,6 +73,8 @@ const CHEATING_PRESETS: { id: string; label: string; description: string; policy
       spadesLeadPolicy: 'MustBeBroken',
       minimumTeamBid: 0,
       consequence: { kind: 'HandPenalty', value: 50 },
+      chatPolicy: 'None',
+      promptCheatingMode: 'Silent',
     },
   },
   {
@@ -82,6 +86,8 @@ const CHEATING_PRESETS: { id: string; label: string; description: string; policy
       spadesLeadPolicy: 'MustBeBroken',
       minimumTeamBid: 0,
       consequence: { kind: 'GameForfeit', value: 0 },
+      chatPolicy: 'None',
+      promptCheatingMode: 'Silent',
     },
   },
 ];
@@ -90,6 +96,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
   const [variant, setVariant] = useState<'standard' | 'jokers'>('standard');
   const [targetScore, setTargetScore] = useState<number>(500);
   const [cheatingPresetId, setCheatingPresetId] = useState<string>('strict');
+  const [chatPolicy, setChatPolicy] = useState<ChatPolicy>('None');
+  const [promptCheatingMode, setPromptCheatingMode] = useState<PromptCheatingMode>('Silent');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Players organized by Team
@@ -115,7 +123,8 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
 
   const handleStart = () => {
     const preset = CHEATING_PRESETS.find((p) => p.id === cheatingPresetId) ?? CHEATING_PRESETS[0];
-    onStart({ variant, players, targetScore, cheatingPolicy: preset.policy });
+    const policy: CheatingPolicy = { ...preset.policy, chatPolicy, promptCheatingMode };
+    onStart({ variant, players, targetScore, cheatingPolicy: policy });
   };
 
   // ─── Auto-start countdown (60s idle) ─────────────────
@@ -367,6 +376,53 @@ export const GameSetup: React.FC<GameSetupProps> = ({ onStart, onLeaderboard, on
                   >
                     <div className="text-sm">{preset.label}</div>
                     <div className="text-[11px] font-normal opacity-75">{preset.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Chat Policy</label>
+              <div className="flex flex-col gap-1.5">
+                {([
+                  { id: 'None' as const, label: 'None', desc: 'No chat between agents.' },
+                  { id: 'PublicOnly' as const, label: 'Public Only', desc: 'Public messages visible to all.' },
+                  { id: 'Partner' as const, label: 'Partner', desc: 'Public + private partner chat.' },
+                  { id: 'All' as const, label: 'All', desc: 'Public, partner, and cross-table.' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setChatPolicy(opt.id)}
+                    className={`py-1.5 px-3 rounded-lg border-2 text-left transition-all ${chatPolicy === opt.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      }`}
+                  >
+                    <div className="text-sm">{opt.label}</div>
+                    <div className="text-[11px] font-normal opacity-75">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Prompt Cheating Mode</label>
+              <div className="flex flex-col gap-1.5">
+                {([
+                  { id: 'Silent' as const, label: 'Silent', desc: 'Standard: agents see only their own hand.' },
+                  { id: 'Permissive' as const, label: 'Permissive', desc: 'Agents see inferred opponent voids.' },
+                  { id: 'Encouraged' as const, label: 'Encouraged', desc: 'Full visibility: all hands shown.' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setPromptCheatingMode(opt.id)}
+                    className={`py-1.5 px-3 rounded-lg border-2 text-left transition-all ${promptCheatingMode === opt.id
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                      }`}
+                  >
+                    <div className="text-sm">{opt.label}</div>
+                    <div className="text-[11px] font-normal opacity-75">{opt.desc}</div>
                   </button>
                 ))}
               </div>

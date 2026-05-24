@@ -65,15 +65,15 @@ restructuring the data model.
 
 Be honest with prospects about what isn't yet built:
 
-- **Chat-layer enforcement.** `chat_policy` field exists in schema; no chat
-  is wired into the engine, so the field is currently inert.
-- **Prompt-side cheating-mode.** `prompt_cheating_mode` (Silent / Permissive /
-  Encouraged) is meant to widen what gets shown to the LLM in the
-  observation. Not yet implemented — the engine sees and gates everything.
-- **Decision-row writes.** The `Decision` table includes `engine_cheat_kind`
-  and `self_reported_cheat`; the engine surfaces `cheatEvents`, but they
-  aren't yet written to that table per-decision. The game row carries the
-  policy and the count.
+- **LLM chat implementations.** The chat enforcement layer is built and
+  working (ChatEnforcer validates policy, detects lies, filters by audience),
+  but no LLM agent actually generates chat yet — the `chat()` method is
+  optional on Agent and only called if the agent implements it. Heuristic
+  and Random agents don't chat.
+- **Per-hand SpacetimeDB writes.** Decision writes use a synthetic hand_id
+  derived from game_id. Full per-hand records (deal encoding, bid packing,
+  score deltas) aren't written yet — the Hand table schema exists but
+  `record_hand` isn't called from the game loop.
 
 ## Talking points for prospects
 
@@ -86,6 +86,94 @@ Be honest with prospects about what isn't yet built:
 3. *"Your team gets a 1–2 week proof of enforcement against a single
    high-priority constraint in your stack."* Concrete trial size for first
    engagement.
+
+## Thagard's imperfect-information gap (key positioning angle)
+
+Thagard (2024) proposes benchmarks for *explanatory inference* — the
+creation and evaluation of hypotheses that explain puzzling observations. His
+framework evaluates LLMs across three axes: **domains** (20+ fields from
+physics to poetry), **modalities** (verbal, visual), and **inference type**
+(creative hypothesis formation vs. evaluative hypothesis selection). He finds
+ChatGPT 4 performs at the level of "a sophisticated graduate student" across
+all tested domains.
+
+### What Thagard tests
+
+- Verbal Q&A: "Evaluate competing hypotheses about X" / "Generate a novel
+  hypothesis about X." Scored by the human researcher.
+- One-shot prompts — no sequential interaction, no follow-up conditioned on
+  the model's earlier actions.
+- Full information in every prompt — the model receives all relevant facts
+  and reasons about them. Nothing is hidden.
+
+### What Thagard does NOT test
+
+- **Partial observability / hidden information.** Every Thagard prompt gives
+  the model the complete evidence set. No benchmark requires the model to
+  *infer what it cannot see* from what it *can* see — the core challenge of
+  imperfect-information games.
+- **Sequential, interactive reasoning.** Thagard's benchmarks are single-turn.
+  The model never has to update beliefs across a series of rounds where new
+  evidence arrives and earlier actions constrain future options.
+- **Adversarial counter-play.** Thagard's evidence is static. No opponent is
+  actively trying to mislead or exploit the model's inferences.
+- **Behavioral measurement.** Thagard scores verbal answers by hand. There is
+  no quantitative, action-level metric — no win rate, no trick accuracy, no
+  bid calibration.
+- **Partnership / theory of mind under action.** Thagard mentions
+  "interpersonal relations" as a domain (p. 7) but only tests whether the
+  model can *talk about* other people's mental states, not whether it can
+  *coordinate actions* with a partner whose hand it cannot see.
+
+### Why Spades fills the gap
+
+In Thagard's own taxonomy, every trick of Spades exercises explanatory
+inference:
+
+| Thagard category              | Spades analogue                                                                                         |
+|-------------------------------|---------------------------------------------------------------------------------------------------------|
+| **Causal reasoning**          | "Why did West play that card?" → infer motive from action (void in suit? setting up a later trick?)     |
+| **Existential abduction**     | "What cards *must* be in the unseen hands?" → postulate hidden state from observed plays                |
+| **Evaluative coherence**      | "Which distribution of remaining cards best explains the play history?" → rank competing hypotheses     |
+| **Augmentative abduction**    | "My partner bid 4 but has only taken 1 — what does that update about their remaining strength?"         |
+| **Distributed cognition**     | Partner-seat coordination: two models must co-infer without communication, using only shared play state |
+
+But Spades goes *beyond* Thagard's framework in three ways Thagard never
+addresses:
+
+1. **Act-on-inference.** The model must *commit to a card* based on its
+   explanatory inferences — not just answer a question. Bad inference →
+   measurable loss (tricks, bags, set hands).
+2. **Sequential belief update.** Over 13 tricks per hand and multiple hands
+   per game, the model must revise its hypotheses as new evidence arrives.
+   Thagard's one-shot prompts don't test this.
+3. **Adversarial information environments.** Opponents may play deceptively
+   (e.g., breaking suit early to mislead count). The evidence itself is
+   strategically polluted — unlike Thagard's curated prompts.
+
+### Consulting pitch (Thagard angle)
+
+*"Thagard (2024) showed that LLMs can do explanatory inference — generate
+and evaluate hypotheses — at graduate-student level across 20+ domains. But
+his benchmarks are verbal, one-shot, and full-information. He never tested
+whether models can do explanatory inference where it matters most:
+sequentially, under hidden information, against adversaries. Spades Arena
+is that test. Same model families, same capability (abductive reasoning),
+but measured behaviorally at scale — thousands of games, per-trick
+resolution, quantitative win/loss metrics."*
+
+This positions Spades as the *behavioral complement* to Thagard's verbal
+benchmarks. Thagard asks "can the model reason explanatorily?" (yes).
+Spades asks "can the model *act* on explanatory reasoning under imperfect
+information?" — a harder, more operationally relevant question for
+enterprise buyers who care about agentic decision quality.
+
+### Citation note
+
+Thagard mentions "game playing" exactly once (p. 6, listing traditional AI
+domains) and never returns to it. He does not cite any game-based LLM
+evaluation. The entire paper's reference list contains no game-theory,
+poker, or card-game benchmarks. This is an uncontested lane.
 
 ## What to do next (to make the pitch real)
 

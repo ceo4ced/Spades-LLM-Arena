@@ -8,9 +8,12 @@ import {
   PlayAction,
   CheatingPolicy,
   CheatEvent,
+  DecisionRecord,
+  PromptCheatingMode,
+  engineCheatKindToCode,
   STRICT_CHEATING_POLICY,
 } from './types';
-import { createDeck, shuffle, parseCard } from './deck';
+import { createDeck, shuffle, parseCard, cardToIndex } from './deck';
 import { getLegalPlays, determineTrickWinner } from './rules';
 import { calculateTeamScore } from './scoring';
 import { seededRng, generateRandomSeed } from './rng';
@@ -28,11 +31,15 @@ export class GameEngine {
   policy: CheatingPolicy;
   /** Every engine-detected cheat across the game, in chronological order. */
   cheatEvents: CheatEvent[] = [];
+  /** Per-decision records accumulated during gameplay for SpacetimeDB writes. */
+  decisions: DecisionRecord[] = [];
   /** 64-bit seed for this game's deal RNG. Persisted with the game record. */
   rngSeed: bigint;
   private rng: () => number;
   /** Per-hand penalty buffer applied at scoreHand time. Indexed by team (1 | 2). */
   private pendingPenalties: { team1: number; team2: number } = { team1: 0, team2: 0 };
+  /** Running decision counter within the current hand, reset each deal. */
+  private handDecisionIndex: number = 0;
 
   constructor(
     targetScore: number = 500,
@@ -90,6 +97,7 @@ export class GameEngine {
     this.state.currentTrick = { number: 1, plays: [], winner: null, ledSuit: null };
     this.state.trickHistory = [];
     this.state.spadesBroken = false;
+    this.handDecisionIndex = 0;
   }
 
   getObservation(seat: number): Observation {
@@ -363,6 +371,114 @@ export class GameEngine {
       this.state.handNumber++;
       this.dealHand();
     }
+  }
+
+  // ─── Decision tracking ──────────────────────────────────────────────
+
+  /**
+   * Record a decision (bid or play) for later SpacetimeDB persistence.
+   * Called from useGame after each successful bid/play.
+   */
+  recordDecision(
+    seat: number,
+    kind: 0 | 1,
+    action: number,
+    legalMask: bigint,
+    latencyMs: number,
+    engineCheatKind: number = 0,
+  ): void {
+    const t1 = this.state.teams.team1;
+    const t2 = this.state.teams.team2;
+    const trickNum = this.state.currentTrick.number;
+    const fingerprint = BigInt(t1.score & 0xFFFF)
+      | (BigInt(t2.score & 0xFFFF) << 16n)
+      | (BigInt(t1.bags & 0xFF) << 32n)
+      | (BigInt(t2.bags & 0xFF) << 40n)
+      | (BigInt(trickNum & 0xFF) << 48n)
+      | (BigInt(this.state.handNumber & 0xFF) << 56n);
+
+    this.decisions.push({
+      handNumber: this.state.handNumber,
+      decisionIndex: this.handDecisionIndex++,
+      seat,
+      kind,
+      action,
+      legalMask,
+      fingerprint,
+      latencyMs,
+      engineCheatKind,
+    });
+  }
+
+  /**
+   * Build a bitmask of legal bid values (bits 0-13).
+   */
+  getLegalBidMask(): bigint {
+    let mask = 0n;
+    for (let i = 0; i <= 13; i++) mask |= (1n << BigInt(i));
+    return mask;
+  }
+
+  /**
+   * Build a bitmask of legal card indices for the current player.
+   */
+  getLegalPlayMask(seat: number): bigint {
+    const player = this.state.players[seat];
+    const legalPlays = getLegalPlays(
+      player.hand,
+      this.state.currentTrick.ledSuit,
+      this.state.spadesBroken,
+      this.forcedOpeningForCurrentTurn(),
+      this.policy.spadesLeadPolicy,
+    );
+    let mask = 0n;
+    for (const c of legalPlays) mask |= (1n << BigInt(cardToIndex(c.id)));
+    return mask;
+  }
+
+  // ─── Prompt cheating mode ─────────────────────────────────────────────
+
+  getObservationWithCheatingMode(seat: number, mode: PromptCheatingMode = 'Silent'): Observation {
+    const obs = this.getObservation(seat);
+
+    if (mode === 'Permissive' && this.state.phase === 'playing') {
+      (obs as any).cheating_context = {
+        mode: 'Permissive',
+        opponent_voids: this.inferVoids(seat),
+      };
+    } else if (mode === 'Encouraged') {
+      (obs as any).cheating_context = {
+        mode: 'Encouraged',
+        opponent_hands: this.state.players.map(p => p.hand.map(c => c.id)),
+        all_bids_with_hands: this.state.players.map(p => ({
+          seat: p.seat,
+          hand: p.hand.map(c => c.id),
+          bid: p.bid ?? 0,
+        })),
+      };
+    }
+
+    return obs;
+  }
+
+  private inferVoids(viewerSeat: number): { seat: number; voidSuits: string[] }[] {
+    const suitNames = ['S', 'H', 'D', 'C'];
+    const result: { seat: number; voidSuits: string[] }[] = [];
+
+    for (let s = 0; s < 4; s++) {
+      if (s === viewerSeat) continue;
+      const voidSuits: string[] = [];
+      for (const suit of suitNames) {
+        const isVoid = this.state.trickHistory.some(trick => {
+          const play = trick.plays.find(p => p.seat === s);
+          if (!play || !trick.ledSuit) return false;
+          return trick.ledSuit === suit && play.card.suit !== suit && play.card.suit !== 'J';
+        });
+        if (isVoid) voidSuits.push(suit);
+      }
+      if (voidSuits.length > 0) result.push({ seat: s, voidSuits });
+    }
+    return result;
   }
 
   // ─── Cheat-handling (SARC: Post-Action Auditor + Escalation Router) ───

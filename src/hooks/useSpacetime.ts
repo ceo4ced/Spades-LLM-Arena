@@ -19,6 +19,7 @@ import {
 } from '../spacetime-client';
 import type { Game, Model } from '../spacetime-bindings/types';
 import type { MatchupRecord } from '../engine/resultsStore';
+import { getLeaderboard as getLocalLeaderboard } from '../engine/resultsStore';
 
 // ─── Module-state caches ────────────────────────────────────────────────
 
@@ -196,6 +197,35 @@ export function useSpacetimeLeaderboard(): SpacetimeModelStats[] {
       if (g.winnerTeam === 2) s.wins++;
       else if (g.winnerTeam === 1) s.losses++;
     }
+  }
+
+  // Merge in localStorage data so games recorded before SpacetimeDB was
+  // connected still show up on the leaderboard.
+  try {
+    const localStats = getLocalLeaderboard();
+    for (const ls of localStats) {
+      const existing = stats.get(ls.model);
+      if (existing) {
+        if (ls.gamesPlayed > existing.gamesPlayed) {
+          existing.wins = Math.max(existing.wins, ls.wins);
+          existing.losses = Math.max(existing.losses, ls.losses);
+          existing.totalPoints = Math.max(existing.totalPoints, ls.totalPoints);
+          existing.totalBags = Math.max(existing.totalBags, ls.totalBags);
+          existing.gamesPlayed = Math.max(existing.gamesPlayed, ls.gamesPlayed);
+        }
+      } else {
+        stats.set(ls.model, {
+          model: ls.model,
+          wins: ls.wins,
+          losses: ls.losses,
+          totalPoints: ls.totalPoints,
+          totalBags: ls.totalBags,
+          gamesPlayed: ls.gamesPlayed,
+        });
+      }
+    }
+  } catch {
+    // localStorage unavailable — ignore.
   }
 
   return Array.from(stats.values()).sort((a, b) => {

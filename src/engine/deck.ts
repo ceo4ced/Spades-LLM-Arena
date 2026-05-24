@@ -50,6 +50,25 @@ export function getCardValue(rank: Rank, suit: Suit): number {
   return values[rank] || 0;
 }
 
+const CARD_INDEX: Record<string, number> = (() => {
+  const map: Record<string, number> = {};
+  let i = 0;
+  const suits: Suit[] = ['S', 'H', 'D', 'C'];
+  const ranks: Rank[] = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
+  for (const s of suits) {
+    for (const r of ranks) {
+      map[`${r}${s}`] = i++;
+    }
+  }
+  map['BigJoker'] = 52;
+  map['LittleJoker'] = 53;
+  return map;
+})();
+
+export function cardToIndex(cardId: string): number {
+  return CARD_INDEX[cardId] ?? 0;
+}
+
 export function parseCard(id: string): Card | null {
   if (id === 'BigJoker') return { suit: 'J', rank: 'Big', id };
   if (id === 'LittleJoker') return { suit: 'J', rank: 'Little', id };
