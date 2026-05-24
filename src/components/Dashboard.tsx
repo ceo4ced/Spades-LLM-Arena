@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import type { ModelStats, MatchupRecord, TournamentResult } from '../engine/resultsStore';
 import {
@@ -21,14 +21,34 @@ const RANK_BG: Record<number, string> = {
     2: 'bg-amber-900/20 border-amber-600/30',
 };
 
+type SortKey = 'winRate' | 'wins' | 'gamesPlayed' | 'totalPoints' | 'totalBags';
+
 export const Dashboard: React.FC<DashboardProps> = ({ onBack, onPlay, onModelClick }) => {
-    // Live data from SpacetimeDB — re-renders as new games are recorded.
-    const leaderboard: ModelStats[] = useSpacetimeLeaderboard();
+    const [sortKey, setSortKey] = useState<SortKey>('winRate');
+    // Live data from SpacetimeDB + localStorage fallback.
+    const rawLeaderboard: ModelStats[] = useSpacetimeLeaderboard();
     const matchups: MatchupRecord[] = useSpacetimeMatchups();
     const totalGames = useSpacetimeGameCount();
-    // Tournaments aren't stored in the SpacetimeDB schema yet — empty for now.
     const tournaments: TournamentResult[] = [];
     const spacetimeGameCount = totalGames;
+
+    const leaderboard = useMemo(() => {
+        return [...rawLeaderboard].sort((a, b) => {
+            switch (sortKey) {
+                case 'wins': return b.wins - a.wins;
+                case 'gamesPlayed': return b.gamesPlayed - a.gamesPlayed;
+                case 'totalPoints': return b.totalPoints - a.totalPoints;
+                case 'totalBags': return a.totalBags - b.totalBags;
+                case 'winRate':
+                default: {
+                    const aRate = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
+                    const bRate = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+                    if (bRate !== aRate) return bRate - aRate;
+                    return b.totalPoints - a.totalPoints;
+                }
+            }
+        });
+    }, [rawLeaderboard, sortKey]);
 
     // Derived stats
     const topWinner = leaderboard.length > 0 ? leaderboard[0] : null;
@@ -181,7 +201,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onBack, onPlay, onModelCli
                                 <span className="text-lg">♠</span>
                                 <h2 className="text-lg font-bold">Leaderboard</h2>
                             </div>
-                            <span className="text-xs text-gray-500">Sort ▾</span>
+                            <select
+                                value={sortKey}
+                                onChange={(e) => setSortKey(e.target.value as SortKey)}
+                                className="text-xs text-gray-400 bg-transparent border border-white/10 rounded px-2 py-1 cursor-pointer"
+                            >
+                                <option value="winRate">Win Rate</option>
+                                <option value="wins">Wins</option>
+                                <option value="gamesPlayed">Games Played</option>
+                                <option value="totalPoints">Total Points</option>
+                                <option value="totalBags">Fewest Bags</option>
+                            </select>
                         </div>
 
                         {leaderboard.length === 0 ? (

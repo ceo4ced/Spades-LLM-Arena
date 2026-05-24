@@ -65,15 +65,15 @@ restructuring the data model.
 
 Be honest with prospects about what isn't yet built:
 
-- **Chat-layer enforcement.** `chat_policy` field exists in schema; no chat
-  is wired into the engine, so the field is currently inert.
-- **Prompt-side cheating-mode.** `prompt_cheating_mode` (Silent / Permissive /
-  Encouraged) is meant to widen what gets shown to the LLM in the
-  observation. Not yet implemented — the engine sees and gates everything.
-- **Decision-row writes.** The `Decision` table includes `engine_cheat_kind`
-  and `self_reported_cheat`; the engine surfaces `cheatEvents`, but they
-  aren't yet written to that table per-decision. The game row carries the
-  policy and the count.
+- **LLM chat implementations.** The chat enforcement layer is built and
+  working (ChatEnforcer validates policy, detects lies, filters by audience),
+  but no LLM agent actually generates chat yet — the `chat()` method is
+  optional on Agent and only called if the agent implements it. Heuristic
+  and Random agents don't chat.
+- **Per-hand SpacetimeDB writes.** Decision writes use a synthetic hand_id
+  derived from game_id. Full per-hand records (deal encoding, bid packing,
+  score deltas) aren't written yet — the Hand table schema exists but
+  `record_hand` isn't called from the game loop.
 
 ## Talking points for prospects
 

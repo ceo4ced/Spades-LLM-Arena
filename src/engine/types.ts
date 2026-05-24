@@ -141,6 +141,10 @@ export interface CheatConsequence {
   value: number;
 }
 
+export type ChatPolicy = 'None' | 'PublicOnly' | 'Partner' | 'All';
+
+export type PromptCheatingMode = 'Silent' | 'Permissive' | 'Encouraged';
+
 export interface CheatingPolicy {
   /** Accept off-suit plays when the player could have followed suit. */
   allowRenege: boolean;
@@ -148,6 +152,8 @@ export interface CheatingPolicy {
   /** Minimum total team bid. 0 disables the floor. */
   minimumTeamBid: number;
   consequence: CheatConsequence;
+  chatPolicy: ChatPolicy;
+  promptCheatingMode: PromptCheatingMode;
 }
 
 /** Strict no-cheating defaults — matches the spacetime-results default block. */
@@ -156,12 +162,39 @@ export const STRICT_CHEATING_POLICY: CheatingPolicy = {
   spadesLeadPolicy: 'MustBeBroken',
   minimumTeamBid: 0,
   consequence: { kind: 'LogOnly', value: 0 },
+  chatPolicy: 'None',
+  promptCheatingMode: 'Silent',
 };
 
 export type EngineCheatKind =
   | 'Renege'
   | 'IllegalLead'
   | 'BidBelowMinimum';
+
+export function engineCheatKindToCode(kind: EngineCheatKind): number {
+  switch (kind) {
+    case 'Renege': return 1;
+    case 'IllegalLead': return 2;
+    case 'BidBelowMinimum': return 3;
+  }
+}
+
+export function chatPolicyToCode(p: ChatPolicy): number {
+  switch (p) {
+    case 'None': return 0;
+    case 'PublicOnly': return 1;
+    case 'Partner': return 2;
+    case 'All': return 3;
+  }
+}
+
+export function promptCheatingModeToCode(m: PromptCheatingMode): number {
+  switch (m) {
+    case 'Silent': return 0;
+    case 'Permissive': return 1;
+    case 'Encouraged': return 2;
+  }
+}
 
 export interface CheatEvent {
   handNumber: number;
@@ -176,4 +209,44 @@ export interface CheatEvent {
   penaltyApplied: number;
   /** True iff this cheat ended the game (GameForfeit). */
   endedGame: boolean;
+}
+
+// ─── Decision tracking ──────────────────────────────────────────────────
+
+export interface DecisionRecord {
+  handNumber: number;
+  decisionIndex: number;
+  seat: number;
+  /** 0 = bid, 1 = play */
+  kind: 0 | 1;
+  /** For bids: bid value (0-13). For plays: card index from cardToIndex(). */
+  action: number;
+  /** Bitmask of legal actions. */
+  legalMask: bigint;
+  /** Packed game state fingerprint. */
+  fingerprint: bigint;
+  latencyMs: number;
+  engineCheatKind: number;
+}
+
+// ─── Chat types ─────────────────────────────────────────────────────────
+
+export type ChatAudience = 'public' | 'partner' | 'target';
+
+export interface ChatAction {
+  text: string;
+  audience: ChatAudience;
+  targetSeat?: number;
+  selfReportedCheat: number;
+}
+
+export interface ChatMessage {
+  seat: number;
+  text: string;
+  audience: ChatAudience;
+  targetSeat?: number;
+  handNumber: number;
+  phase: 'bidding' | 'playing';
+  selfReportedCheat: number;
+  engineDetectedLie: boolean;
 }
